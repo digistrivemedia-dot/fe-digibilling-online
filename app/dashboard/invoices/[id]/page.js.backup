@@ -11,8 +11,6 @@ import { HiPlus, HiPencil, HiTrash, HiX, HiCurrencyRupee, HiEye } from 'react-ic
 import ModernTemplate from '@/components/invoice-templates/ModernTemplate';
 import TallyPortraitTemplate from '@/components/invoice-templates/TallyPortraitTemplate';
 import TallyLandscapeTemplate from '@/components/invoice-templates/TallyLandscapeTemplate';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export default function InvoiceDetail() {
   const { user, loading } = useAuth();
@@ -78,9 +76,13 @@ export default function InvoiceDetail() {
 
   const handleWhatsAppShare = () => {
     const shopName = shopSettings?.shopName || 'Our Store';
+
+    // Generate PDF link
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const pdfLink = `${apiBaseUrl}/api/invoices/${invoice._id}/pdf`;
     const message = `Hi ${invoice.customerName}! 👋
 
-Here's your invoice summary from *${shopName}*:
+Here's your invoice from *${shopName}*:
 
 🧾 *Invoice:* ${invoice.invoiceNumber}
 � *Date:* ${new Date(invoice.invoiceDate).toLocaleDateString('en-IN')}
@@ -90,6 +92,9 @@ ${invoice.balanceAmount > 0
         ? `✅ *Paid:* ₹${invoice.paidAmount.toLocaleString('en-IN')}
 ⚠️ *Balance Due:* ₹${invoice.balanceAmount.toLocaleString('en-IN')}`
         : `✅ *Status:* Fully Paid`}
+
+📄 *View/Download Invoice PDF:*
+${pdfLink}
 
 Thank you for your business! 🙏`;
 

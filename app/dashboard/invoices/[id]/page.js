@@ -76,20 +76,34 @@ export default function InvoiceDetail() {
 
   const handleWhatsAppShare = () => {
     const shopName = shopSettings?.shopName || 'Our Store';
-    const message = `Hi ${invoice.customerName}! 👋
 
-Here's your invoice summary from *${shopName}*:
+    // Generate PDF link
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const pdfLink = `${apiBaseUrl}/api/invoices/${invoice._id}/pdf`;
+    const message = `Hi ${invoice.customerName}!
 
-🧾 *Invoice:* ${invoice.invoiceNumber}
-� *Date:* ${new Date(invoice.invoiceDate).toLocaleDateString('en-IN')}
+Here is your invoice from *${shopName}*
 
-💰 *Total Amount:* ₹${invoice.grandTotal.toLocaleString('en-IN')}
+*INVOICE DETAILS*
+━━━━━━━━━━━━━━━━━━━━
+Invoice Number: *${invoice.invoiceNumber}*
+Date: ${new Date(invoice.invoiceDate).toLocaleDateString('en-IN')}
 ${invoice.balanceAmount > 0
-        ? `✅ *Paid:* ₹${invoice.paidAmount.toLocaleString('en-IN')}
-⚠️ *Balance Due:* ₹${invoice.balanceAmount.toLocaleString('en-IN')}`
-        : `✅ *Status:* Fully Paid`}
+        ? `
+Amount: *Rs. ${invoice.grandTotal.toLocaleString('en-IN')}*
+Paid: Rs. ${invoice.paidAmount.toLocaleString('en-IN')}
+*Balance Due: Rs. ${invoice.balanceAmount.toLocaleString('en-IN')}*`
+        : `
+Total Amount: *Rs. ${invoice.grandTotal.toLocaleString('en-IN')}*
+Status: *FULLY PAID*`}
+━━━━━━━━━━━━━━━━━━━━
 
-Thank you for your business! 🙏`;
+*VIEW OR DOWNLOAD INVOICE:*
+${pdfLink}
+
+Thank you for your business!
+
+_This is a computer generated invoice_`;
 
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
