@@ -877,6 +877,8 @@ export default function Products() {
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     >
                       <option value={0}>0%</option>
+                      <option value={0.25}>0.25%</option>
+                      <option value={3}>3%</option>
                       <option value={5}>5%</option>
                       <option value={12}>12%</option>
                       <option value={18}>18%</option>

@@ -296,7 +296,7 @@ export default function EditProformaInvoice() {
                                     <div className="w-24">
                                         <select value={item.gstRate} onChange={(e) => updateItem(index, 'gstRate', Number(e.target.value))}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                                            {[0, 5, 12, 18, 28].map(r => <option key={r} value={r}>{r}%</option>)}
+                                            {[0, 0.25, 3, 5, 12, 18, 28, 40].map(r => <option key={r} value={r}>{r}%</option>)}
                                         </select>
                                     </div>
                                     <div className="w-32 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm">

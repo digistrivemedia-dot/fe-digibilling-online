@@ -555,7 +555,7 @@ export default function NewQuotation() {
                         <select value={item.gstRate} onChange={e => updateItem(index, 'gstRate', Number(e.target.value))}
                           disabled={taxType === 'NONE'}
                           className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white disabled:bg-gray-100 disabled:text-gray-400">
-                          {[0, 5, 12, 18, 28].map(r => <option key={r} value={r}>{r}%</option>)}
+                          {[0, 0.25, 3, 5, 12, 18, 28, 40].map(r => <option key={r} value={r}>{r}%</option>)}
                         </select>
                       </div>
 

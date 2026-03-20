@@ -14,7 +14,7 @@ import {
     HiSave,
 } from 'react-icons/hi';
 
-const GST_RATES = [0, 5, 12, 18, 28];
+const GST_RATES = [0, 0.25, 3, 5, 12, 18, 28, 40];
 const UNITS = ['PCS', 'NOS', 'JOB', 'HRS', 'DAYS', 'MONTHS'];
 
 export default function EditService() {

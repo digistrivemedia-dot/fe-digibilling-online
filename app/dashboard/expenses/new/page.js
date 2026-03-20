@@ -263,10 +263,13 @@ export default function NewExpensePage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="0">No GST (0%)</option>
+                  <option value="0.25">0.25%</option>
+                  <option value="3">3%</option>
                   <option value="5">5%</option>
                   <option value="12">12%</option>
                   <option value="18">18%</option>
                   <option value="28">28%</option>
+                  <option value="40">40%</option>
                 </select>
               </div>
 

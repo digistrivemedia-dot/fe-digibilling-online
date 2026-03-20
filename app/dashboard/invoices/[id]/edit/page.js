@@ -730,10 +730,13 @@ export default function EditInvoice() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                         >
                           <option value={0}>0%</option>
+                          <option value={0.25}>0.25%</option>
+                          <option value={3}>3%</option>
                           <option value={5}>5%</option>
                           <option value={12}>12%</option>
                           <option value={18}>18%</option>
                           <option value={28}>28%</option>
+                          <option value={40}>40%</option>
                         </select>
                       </div>
 
