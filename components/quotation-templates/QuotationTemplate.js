@@ -132,7 +132,7 @@ export default function QuotationTemplate({ quotation, shopSettings }) {
                                     <td className="px-4 py-3 text-sm font-semibold" style={{ color: brand }}>{index + 1}</td>
                                     <td className="px-4 py-3">
                                         <div className="text-sm font-semibold text-gray-900">
-                                            {item.productName || item.serviceName}
+                                            {item.productName || item.product?.name || item.serviceName || item.service?.name || 'N/A'}
                                         </div>
                                         {item.itemType === 'service' && (
                                             <div className="text-[10px] font-bold uppercase tracking-wide mt-0.5"

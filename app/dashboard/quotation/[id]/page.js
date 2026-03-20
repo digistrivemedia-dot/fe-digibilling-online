@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
-import PageLoader from '@/components/PageLoader';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { quotationsAPI, shopAPI } from '@/utils/api';
 import QuotationTemplate from '@/components/quotation-templates/QuotationTemplate';
 import { HiPencil, HiTrash, HiPrinter, HiDocumentText } from 'react-icons/hi';
@@ -80,20 +80,86 @@ export default function QuotationDetail() {
   };
 
   if (loading || !user) return null;
-  if (loadingData) return <DashboardLayout><PageLoader /></DashboardLayout>;
 
   return (
     <>
-      <style>{`
+      <style jsx global>{`
+        @page {
+          size: A4;
+          margin: 0;
+        }
+
         @media print {
-          body * { visibility: hidden; }
-          .quotation-print, .quotation-print * { visibility: visible; }
-          .quotation-print { position: fixed; left: 0; top: 0; width: 100%; }
-          .no-print { display: none !important; }
+          * {
+            visibility: hidden;
+          }
+
+          .quotation-print,
+          .quotation-print * {
+            visibility: visible;
+          }
+
+          html, body {
+            width: 210mm;
+            height: auto;
+            margin: 0;
+            padding: 0;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+            background: white;
+          }
+
+          .no-print {
+            display: none !important;
+          }
+
+          /* Make quotation full width and properly positioned */
+          .quotation-print {
+            position: absolute;
+            left: 0;
+            top: 0;
+            box-shadow: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+            padding: 15mm;
+            margin: 0;
+            width: 210mm;
+            max-width: 210mm;
+            background: white;
+          }
+
+          /* Prevent awkward page breaks */
+          table {
+            page-break-inside: auto;
+          }
+
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+
+          thead {
+            display: table-header-group;
+          }
+
+          tfoot {
+            display: table-footer-group;
+          }
+
+          /* Avoid breaking these elements across pages */
+          .rounded-xl,
+          .space-y-4 {
+            page-break-inside: avoid;
+          }
         }
       `}</style>
 
       <DashboardLayout>
+        {loadingData ? (
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <LoadingSpinner size="lg" text="Loading quotation..." />
+          </div>
+        ) : (
         <div className="max-w-4xl mx-auto space-y-4">
           {/* Action Bar */}
           <div className="no-print flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-4">
@@ -148,6 +214,7 @@ export default function QuotationDetail() {
             <QuotationTemplate quotation={quotation} shopSettings={shopSettings} />
           )}
         </div>
+        )}
       </DashboardLayout>
 
       {/* Delete Confirm */}
