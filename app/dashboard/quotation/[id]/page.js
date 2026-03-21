@@ -29,7 +29,6 @@ export default function QuotationDetail() {
   const [loadingData, setLoadingData] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -66,17 +65,9 @@ export default function QuotationDetail() {
     }
   };
 
-  const handleConvertToInvoice = async () => {
-    setConverting(true);
-    try {
-      const invoice = await quotationsAPI.convertToInvoice(params.id);
-      toast.success('Quotation converted to invoice!');
-      router.push(`/dashboard/invoices/${invoice._id}`);
-    } catch (error) {
-      toast.error(error.message || 'Failed to convert to invoice');
-    } finally {
-      setConverting(false);
-    }
+  const handleConvertToInvoice = () => {
+    // Redirect to invoice creation page with quotation data
+    router.push(`/dashboard/invoices/new?fromQuotation=${params.id}`);
   };
 
   if (loading || !user) return null;
@@ -177,10 +168,10 @@ export default function QuotationDetail() {
             <div className="flex items-center gap-2">
               {/* Convert to Invoice */}
               {quotation?.status === 'ACCEPTED' && !quotation?.convertedToInvoiceId && (
-                <button onClick={handleConvertToInvoice} disabled={converting}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium disabled:opacity-60">
+                <button onClick={handleConvertToInvoice}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium">
                   <HiDocumentText className="w-4 h-4" />
-                  {converting ? 'Converting...' : 'Convert to Invoice'}
+                  Convert to Invoice
                 </button>
               )}
               {/* Already converted — show link to the invoice */}

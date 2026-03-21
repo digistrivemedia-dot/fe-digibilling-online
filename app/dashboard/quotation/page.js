@@ -37,12 +37,22 @@ export default function QuotationsPage() {
 
   // ── Convert to Invoice state ──────────────────────────────────────────────
   const [convertConfirm, setConvertConfirm] = useState(null); // holds the quotation object
-  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
     else if (user) loadData();
   }, [user, loading]);
+
+  // Reload data when component becomes visible (e.g., after navigating back from invoice page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        loadData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user]);
 
   const loadData = async () => {
     setLoadingData(true);
@@ -83,19 +93,10 @@ export default function QuotationsPage() {
     }
   };
 
-  const handleConvertToInvoice = async () => {
-    setConverting(true);
-    try {
-      const invoice = await quotationsAPI.convertToInvoice(convertConfirm._id);
-      toast.success('Quotation converted to invoice!');
-      setConvertConfirm(null);
-      router.push(`/dashboard/invoices/${invoice._id}`);
-    } catch (error) {
-      toast.error(error.message || 'Failed to convert to invoice');
-      setConvertConfirm(null);
-    } finally {
-      setConverting(false);
-    }
+  const handleConvertToInvoice = () => {
+    // Redirect to invoice creation page with quotation data
+    router.push(`/dashboard/invoices/new?fromQuotation=${convertConfirm._id}`);
+    setConvertConfirm(null);
   };
 
   if (loading || !user) return null;
@@ -274,22 +275,20 @@ export default function QuotationsPage() {
               <span className="font-semibold text-gray-700">{convertConfirm.quotationNumber}</span> will be converted into a new invoice.
             </p>
             <p className="text-xs text-gray-400 mb-6">
-              Stock will be deducted and the quotation will be marked as Accepted.
+              You'll be redirected to review and complete the invoice.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConvertConfirm(null)}
-                disabled={converting}
-                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50"
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConvertToInvoice}
-                disabled={converting}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-60"
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
               >
-                {converting ? 'Converting...' : 'Convert'}
+                Convert
               </button>
             </div>
           </div>

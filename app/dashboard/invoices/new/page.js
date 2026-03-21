@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
-import { productsAPI, customersAPI, invoicesAPI, shopAPI, servicesAPI } from '@/utils/api';
+import { productsAPI, customersAPI, invoicesAPI, shopAPI, servicesAPI, quotationsAPI } from '@/utils/api';
 import { HiPlus, HiSearch, HiX, HiExclamation, HiLightningBolt, HiCube } from 'react-icons/hi';
 
-export default function NewInvoice() {
+function NewInvoiceContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
@@ -32,6 +33,8 @@ export default function NewInvoice() {
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [submitting, setSubmitting] = useState(false);
   const [invoiceType, setInvoiceType] = useState('tax-invoice'); // 'tax-invoice' | 'bill-of-supply'
+  const [fromQuotationId, setFromQuotationId] = useState(null); // Store quotation ID if converting
+  const [quotationLoaded, setQuotationLoaded] = useState(false); // Track if quotation data was loaded
 
   // Transportation details accordion
   const [showTransport, setShowTransport] = useState(false);
@@ -92,6 +95,15 @@ export default function NewInvoice() {
     }
   }, [user, loading, router]);
 
+  // Check if coming from quotation
+  useEffect(() => {
+    const quotationId = searchParams.get('fromQuotation');
+    if (quotationId && user && products.length > 0 && !quotationLoaded) {
+      loadQuotationData(quotationId);
+      setQuotationLoaded(true);
+    }
+  }, [searchParams, user, products, quotationLoaded]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -122,6 +134,89 @@ export default function NewInvoice() {
       }
     } catch (error) {
       console.error('Error loading data:', error);
+    }
+  };
+
+  const loadQuotationData = async (quotationId) => {
+    try {
+      toast.info('Loading quotation data...');
+      const quotation = await quotationsAPI.getOne(quotationId);
+
+      // Store quotation ID for later update
+      setFromQuotationId(quotationId);
+
+      // Pre-fill customer information
+      setCustomerName(quotation.customerName || 'Cash Customer');
+      setCustomerPhone(quotation.customerPhone || '');
+      setSelectedCustomer(quotation.customer || null);
+
+      // Pre-fill items from quotation
+      const mappedItems = quotation.items.map(item => {
+        const itemType = item.itemType || 'product';
+
+        if (itemType === 'service') {
+          // Service item
+          return {
+            itemType: 'service',
+            serviceId: item.service?._id || item.service || '',
+            serviceName: item.serviceName || item.service?.name || '',
+            sacCode: item.sacCode || item.service?.sacCode || '',
+            quantity: item.quantity || 1,
+            unit: item.unit || 'NOS',
+            sellingPrice: item.sellingPrice || 0,
+            gstRate: item.gstRate || 0,
+            cessRate: item.cessRate || 0,
+          };
+        } else {
+          // Product item - need to find matching batch
+          const productId = item.product?._id || item.product;
+          const batchId = item.batch?._id || item.batch;
+
+          // Find matching batch in products array
+          let matchedBatch = null;
+          if (productId && batchId) {
+            matchedBatch = products.find(b =>
+              b.productId === productId && b.batchId === batchId
+            );
+          } else if (productId) {
+            // If no batchId, try to find any batch for this product
+            matchedBatch = products.find(b => b.productId === productId);
+          }
+
+          return {
+            itemType: 'product',
+            product: productId || '',
+            batch: batchId || null,
+            selectedBatch: matchedBatch ? JSON.stringify(matchedBatch) : '',
+            productName: item.productName || item.product?.name || '',
+            hsnCode: item.hsnCode || item.product?.hsnCode || '',
+            quantity: item.quantity || 1,
+            unit: item.unit || 'pcs',
+            sellingPrice: item.sellingPrice || 0,
+            gstRate: item.gstRate || 0,
+            cessRate: item.cessRate || 0,
+            batchNo: item.batchNo || '',
+            expiryDate: item.expiryDate || '',
+          };
+        }
+      });
+      setInvoiceItems(mappedItems);
+
+      // Pre-fill tax type and other details
+      if (quotation.taxType) {
+        setTaxType(quotation.taxType);
+      }
+      if (quotation.discount) {
+        setDiscount(quotation.discount);
+      }
+      if (quotation.notes) {
+        setNotes(quotation.notes);
+      }
+
+      toast.success('Quotation data loaded! Review and create invoice.');
+    } catch (error) {
+      console.error('Error loading quotation:', error);
+      toast.error('Failed to load quotation data');
     }
   };
 
@@ -390,7 +485,24 @@ export default function NewInvoice() {
       };
 
       const invoice = await invoicesAPI.create(invoiceData);
-      toast.success('Invoice created successfully!');
+
+      // If this invoice was created from a quotation, update the quotation
+      if (fromQuotationId) {
+        try {
+          await quotationsAPI.update(fromQuotationId, {
+            convertedToInvoiceId: invoice._id,
+            status: 'ACCEPTED'
+          });
+          toast.success('Invoice created & quotation updated!');
+        } catch (updateError) {
+          console.error('Failed to update quotation:', updateError);
+          toast.success('Invoice created successfully!');
+          // Don't block the flow - invoice is already created
+        }
+      } else {
+        toast.success('Invoice created successfully!');
+      }
+
       router.push(`/dashboard/invoices/${invoice._id}`);
     } catch (error) {
       // Show user-friendly error messages
@@ -1599,5 +1711,13 @@ export default function NewInvoice() {
         </form>
       </Modal>
     </DashboardLayout>
+  );
+}
+
+export default function NewInvoice() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <NewInvoiceContent />
+    </Suspense>
   );
 }
