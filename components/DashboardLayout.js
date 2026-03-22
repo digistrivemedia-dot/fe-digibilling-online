@@ -138,8 +138,19 @@ export default function DashboardLayout({ children }) {
   };
 
   // Filter nav based on feature toggles from settings
-  const filteredNavigation = navigation.filter(item => {
+  const filteredNavigation = navigation.map(item => {
+    if (item.name === 'Items') {
+      const filteredChildren = item.children.filter(child => {
+        if (child.name === 'Products' && shopSettings?.enableProduct === false) return false;
+        if (child.name === 'Services' && shopSettings?.enableService !== true) return false;
+        return true;
+      });
+      return { ...item, children: filteredChildren };
+    }
+    return item;
+  }).filter(item => {
     if (item.name === 'Inventory' && shopSettings?.enableInventory === false) return false;
+    if (item.name === 'Items' && (!item.children || item.children.length === 0)) return false;
     return true;
   });
 

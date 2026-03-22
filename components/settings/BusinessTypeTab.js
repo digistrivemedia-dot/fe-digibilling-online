@@ -65,6 +65,7 @@ export default function BusinessTypeTab() {
                 enableInventory,
             });
             toast.success('Settings saved!');
+            window.dispatchEvent(new Event('shopSettingsUpdated'));
         } catch (error) {
             toast.error(error.message || 'Failed to save');
         } finally {
