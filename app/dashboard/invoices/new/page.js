@@ -1182,17 +1182,19 @@ function NewInvoiceContent() {
                               // Show batch info for regular batch products
                               try {
                                 const batch = JSON.parse(item.selectedBatch);
-                                return batch.batchNo ? (
+                                const showBatch = shopSettings?.invBatchNumber !== false;
+                                const showExp = shopSettings?.invExpiryDate !== false;
+                                return batch ? (
                                   <div className="mt-1.5 px-2 py-1 bg-blue-50 border border-blue-200 rounded-md">
                                     <span className="text-xs font-medium text-blue-700">
-                                      Batch: {batch.batchNo}
-                                      {batch.expiryDate && (
-                                        <span className="ml-2 text-blue-600">
-                                          • Exp: {new Date(batch.expiryDate).toLocaleDateString('en-GB')}
+                                      {batch.batchNo && showBatch && `Batch: ${batch.batchNo}`}
+                                      {batch.expiryDate && showExp && (
+                                        <span className={batch.batchNo && showBatch ? "ml-2 text-blue-600" : ""}>
+                                          {batch.batchNo && showBatch ? '• ' : ''}Exp: {new Date(batch.expiryDate).toLocaleDateString('en-GB')}
                                         </span>
                                       )}
-                                      <span className="ml-2 text-blue-600">
-                                        • Available: {batch.availableQuantity} {batch.unit}
+                                      <span className={(batch.batchNo && showBatch) || (batch.expiryDate && showExp) ? "ml-2 text-blue-600" : ""}>
+                                        {((batch.batchNo && showBatch) || (batch.expiryDate && showExp)) ? '• ' : ''}Available: {batch.availableQuantity} {batch.unit}
                                       </span>
                                     </span>
                                   </div>

@@ -90,12 +90,12 @@ export default function ModernTemplate({ invoice, shopSettings }) {
                                 <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
                                 <td className="px-4 py-3">
                                     <div className="text-sm font-medium text-gray-900">{item.productName}</div>
-                                    {(item.batchNo || item.expiryDate || item.serialNumber) && (
+                                    {((item.batchNo && shopSettings?.invBatchNumber !== false) || (item.expiryDate && shopSettings?.invExpiryDate !== false) || item.serialNumber) && (
                                         <div className="text-xs text-gray-500 mt-1">
-                                            {item.batchNo && <span>Batch: {item.batchNo}</span>}
-                                            {item.batchNo && item.expiryDate && <span> | </span>}
-                                            {item.expiryDate && <span>Exp: {new Date(item.expiryDate).toLocaleDateString('en-GB', { month: '2-digit', year: 'numeric' })}</span>}
-                                            {(item.batchNo || item.expiryDate) && item.serialNumber && <span> | </span>}
+                                            {item.batchNo && shopSettings?.invBatchNumber !== false && <span>Batch: {item.batchNo}</span>}
+                                            {item.batchNo && shopSettings?.invBatchNumber !== false && item.expiryDate && shopSettings?.invExpiryDate !== false && <span> | </span>}
+                                            {item.expiryDate && shopSettings?.invExpiryDate !== false && <span>Exp: {new Date(item.expiryDate).toLocaleDateString('en-GB', { month: '2-digit', year: 'numeric' })}</span>}
+                                            {((item.batchNo && shopSettings?.invBatchNumber !== false) || (item.expiryDate && shopSettings?.invExpiryDate !== false)) && item.serialNumber && <span> | </span>}
                                             {item.serialNumber && <span>S/N: {item.serialNumber}</span>}
                                         </div>
                                     )}
