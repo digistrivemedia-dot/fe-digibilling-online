@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
-import { productsAPI, customersAPI, invoicesAPI, shopAPI, servicesAPI, quotationsAPI } from '@/utils/api';
+import { productsAPI, customersAPI, invoicesAPI, shopAPI, servicesAPI, quotationsAPI, proformaInvoicesAPI } from '@/utils/api';
 import { HiPlus, HiSearch, HiX, HiExclamation, HiLightningBolt, HiCube } from 'react-icons/hi';
 
 function NewInvoiceContent() {
@@ -35,6 +35,8 @@ function NewInvoiceContent() {
   const [invoiceType, setInvoiceType] = useState('tax-invoice'); // 'tax-invoice' | 'bill-of-supply'
   const [fromQuotationId, setFromQuotationId] = useState(null); // Store quotation ID if converting
   const [quotationLoaded, setQuotationLoaded] = useState(false); // Track if quotation data was loaded
+  const [fromProformaId, setFromProformaId] = useState(null); // Store proforma ID if converting
+  const [proformaLoaded, setProformaLoaded] = useState(false); // Track if proforma data was loaded
 
   // Transportation details accordion
   const [showTransport, setShowTransport] = useState(false);
@@ -103,6 +105,15 @@ function NewInvoiceContent() {
       setQuotationLoaded(true);
     }
   }, [searchParams, user, products, quotationLoaded]);
+
+  // Check if coming from proforma invoice
+  useEffect(() => {
+    const proformaId = searchParams.get('fromProforma');
+    if (proformaId && user && products.length > 0 && !proformaLoaded) {
+      loadProformaData(proformaId);
+      setProformaLoaded(true);
+    }
+  }, [searchParams, user, products, proformaLoaded]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -217,6 +228,89 @@ function NewInvoiceContent() {
     } catch (error) {
       console.error('Error loading quotation:', error);
       toast.error('Failed to load quotation data');
+    }
+  };
+
+  const loadProformaData = async (proformaId) => {
+    try {
+      toast.info('Loading proforma invoice data...');
+      const proforma = await proformaInvoicesAPI.getOne(proformaId);
+
+      // Store proforma ID for later update
+      setFromProformaId(proformaId);
+
+      // Pre-fill customer information
+      setCustomerName(proforma.customerName || 'Cash Customer');
+      setCustomerPhone(proforma.customerPhone || '');
+      setSelectedCustomer(proforma.customer || null);
+
+      // Pre-fill items from proforma
+      const mappedItems = proforma.items.map(item => {
+        const itemType = item.itemType || 'product';
+
+        if (itemType === 'service') {
+          // Service item
+          return {
+            itemType: 'service',
+            serviceId: item.service?._id || item.service || '',
+            serviceName: item.serviceName || item.service?.name || '',
+            sacCode: item.sacCode || item.service?.sacCode || '',
+            quantity: item.quantity || 1,
+            unit: item.unit || 'NOS',
+            sellingPrice: item.sellingPrice || 0,
+            gstRate: item.gstRate || 0,
+            cessRate: item.cessRate || 0,
+          };
+        } else {
+          // Product item - need to find matching batch
+          const productId = item.product?._id || item.product;
+          const batchId = item.batch?._id || item.batch;
+
+          // Find matching batch in products array
+          let matchedBatch = null;
+          if (productId && batchId) {
+            matchedBatch = products.find(b =>
+              b.productId === productId && b.batchId === batchId
+            );
+          } else if (productId) {
+            // If no batchId, try to find any batch for this product
+            matchedBatch = products.find(b => b.productId === productId);
+          }
+
+          return {
+            itemType: 'product',
+            product: productId || '',
+            batch: batchId || null,
+            selectedBatch: matchedBatch ? JSON.stringify(matchedBatch) : '',
+            productName: item.productName || item.product?.name || '',
+            hsnCode: item.hsnCode || item.product?.hsnCode || '',
+            quantity: item.quantity || 1,
+            unit: item.unit || 'pcs',
+            sellingPrice: item.sellingPrice || 0,
+            gstRate: item.gstRate || 0,
+            cessRate: item.cessRate || 0,
+            batchNo: item.batchNo || '',
+            expiryDate: item.expiryDate || '',
+          };
+        }
+      });
+      setInvoiceItems(mappedItems);
+
+      // Pre-fill tax type and other details
+      if (proforma.taxType) {
+        setTaxType(proforma.taxType);
+      }
+      if (proforma.discount) {
+        setDiscount(proforma.discount);
+      }
+      if (proforma.notes) {
+        setNotes(proforma.notes);
+      }
+
+      toast.success('Proforma data loaded! Review and create invoice.');
+    } catch (error) {
+      console.error('Error loading proforma:', error);
+      toast.error('Failed to load proforma data');
     }
   };
 
@@ -496,6 +590,20 @@ function NewInvoiceContent() {
           toast.success('Invoice created & quotation updated!');
         } catch (updateError) {
           console.error('Failed to update quotation:', updateError);
+          toast.success('Invoice created successfully!');
+          // Don't block the flow - invoice is already created
+        }
+      }
+      // If this invoice was created from a proforma invoice, update the proforma
+      else if (fromProformaId) {
+        try {
+          await proformaInvoicesAPI.update(fromProformaId, {
+            convertedToInvoiceId: invoice._id,
+            status: 'ACCEPTED'
+          });
+          toast.success('Invoice created & proforma updated!');
+        } catch (updateError) {
+          console.error('Failed to update proforma:', updateError);
           toast.success('Invoice created successfully!');
           // Don't block the flow - invoice is already created
         }

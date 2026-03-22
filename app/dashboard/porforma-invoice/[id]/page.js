@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
-import PageLoader from '@/components/PageLoader';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { proformaInvoicesAPI, shopAPI } from '@/utils/api';
 import { HiPencil, HiTrash, HiPrinter, HiDocumentText } from 'react-icons/hi';
 
@@ -27,7 +27,6 @@ export default function ProformaInvoiceDetail() {
     const [loadingData, setLoadingData] = useState(true);
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [converting, setConverting] = useState(false);
 
     useEffect(() => {
         if (!loading && !user) router.push('/login');
@@ -52,18 +51,12 @@ export default function ProformaInvoiceDetail() {
         finally { setDeleting(false); }
     };
 
-    const handleConvert = async () => {
-        setConverting(true);
-        try {
-            const inv = await proformaInvoicesAPI.convertToInvoice(params.id);
-            toast.success('Converted to invoice!');
-            router.push(`/dashboard/invoices/${inv._id}`);
-        } catch (e) { toast.error(e.message || 'Conversion failed'); }
-        finally { setConverting(false); }
+    const handleConvert = () => {
+        // Redirect to invoice creation page with proforma data
+        router.push(`/dashboard/invoices/new?fromProforma=${params.id}`);
     };
 
     if (loading || !user) return null;
-    if (loadingData) return <DashboardLayout><PageLoader /></DashboardLayout>;
 
     const shop = shopSettings || {};
     const p = proforma || {};
@@ -72,6 +65,11 @@ export default function ProformaInvoiceDetail() {
         <>
             <style>{`@media print{body *{visibility:hidden}.pp,.pp *{visibility:visible}.pp{position:fixed;left:0;top:0;width:100%}.no-print{display:none!important}}`}</style>
             <DashboardLayout>
+                {loadingData ? (
+                    <div className="flex items-center justify-center min-h-[60vh]">
+                        <LoadingSpinner size="lg" text="Loading proforma invoice..." />
+                    </div>
+                ) : (
                 <div className="max-w-4xl mx-auto space-y-4">
                     {/* Action bar */}
                     <div className="no-print flex items-center justify-between bg-white rounded-xl border border-gray-200 px-6 py-4">
@@ -80,10 +78,16 @@ export default function ProformaInvoiceDetail() {
                             {proforma && <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_COLOR[proforma.status] || STATUS_COLOR.DRAFT}`}>{proforma.status}</span>}
                         </div>
                         <div className="flex items-center gap-2">
-                            {proforma?.status === 'CONFIRMED' && (
-                                <button onClick={handleConvert} disabled={converting}
-                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium disabled:opacity-60">
-                                    <HiDocumentText className="w-4 h-4" />{converting ? 'Converting...' : 'Convert to Invoice'}
+                            {/* Convert to Invoice */}
+                            {!proforma?.convertedToInvoiceId ? (
+                                <button onClick={handleConvert}
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium">
+                                    <HiDocumentText className="w-4 h-4" />Convert to Invoice
+                                </button>
+                            ) : (
+                                <button onClick={() => router.push(`/dashboard/invoices/${proforma.convertedToInvoiceId}`)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 text-sm font-medium">
+                                    <HiDocumentText className="w-4 h-4" />View Invoice
                                 </button>
                             )}
                             <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-medium">
@@ -171,6 +175,7 @@ export default function ProformaInvoiceDetail() {
                         </div>
                     )}
                 </div>
+                )}
             </DashboardLayout>
 
             {deleteConfirm && (
