@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
-import { productsAPI, customersAPI, invoicesAPI, shopAPI, servicesAPI, quotationsAPI, proformaInvoicesAPI } from '@/utils/api';
+import { productsAPI, customersAPI, invoicesAPI, shopAPI, servicesAPI, quotationsAPI, proformaInvoicesAPI, deliveryChallansAPI } from '@/utils/api';
 import { HiPlus, HiSearch, HiX, HiExclamation, HiLightningBolt, HiCube } from 'react-icons/hi';
 
 function NewInvoiceContent() {
@@ -37,6 +37,8 @@ function NewInvoiceContent() {
   const [quotationLoaded, setQuotationLoaded] = useState(false); // Track if quotation data was loaded
   const [fromProformaId, setFromProformaId] = useState(null); // Store proforma ID if converting
   const [proformaLoaded, setProformaLoaded] = useState(false); // Track if proforma data was loaded
+  const [fromChallanId, setFromChallanId] = useState(null); // Store challan ID if converting
+  const [challanLoaded, setChallanLoaded] = useState(false); // Track if challan data was loaded
 
   // Transportation details accordion
   const [showTransport, setShowTransport] = useState(false);
@@ -114,6 +116,15 @@ function NewInvoiceContent() {
       setProformaLoaded(true);
     }
   }, [searchParams, user, products, proformaLoaded]);
+
+  // Check if coming from delivery challan
+  useEffect(() => {
+    const challanId = searchParams.get('fromChallan');
+    if (challanId && user && products.length > 0 && !challanLoaded) {
+      loadChallanData(challanId);
+      setChallanLoaded(true);
+    }
+  }, [searchParams, user, products, challanLoaded]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -311,6 +322,129 @@ function NewInvoiceContent() {
     } catch (error) {
       console.error('Error loading proforma:', error);
       toast.error('Failed to load proforma data');
+    }
+  };
+
+  const loadChallanData = async (challanId) => {
+    try {
+      toast.info('Loading delivery challan data...');
+      const challan = await deliveryChallansAPI.getOne(challanId);
+
+      // Store challan ID for later update
+      setFromChallanId(challanId);
+
+      // Pre-fill customer information
+      setCustomerName(challan.customerName || 'Cash Customer');
+      setCustomerPhone(challan.customerPhone || '');
+      setSelectedCustomer(challan.customer || null);
+
+      // Pre-fill items from challan
+      const mappedItems = challan.items.map(item => {
+        const itemType = item.itemType || 'product';
+
+        if (itemType === 'service') {
+          // Service item
+          return {
+            itemType: 'service',
+            serviceId: item.service?._id || item.service || '',
+            serviceName: item.serviceName || item.service?.name || '',
+            sacCode: item.sacCode || item.service?.sacCode || '',
+            quantity: item.quantity || 1,
+            unit: item.unit || 'NOS',
+            sellingPrice: item.sellingPrice || 0,
+            gstRate: item.gstRate || 0,
+            cessRate: item.cessRate || 0,
+            description: item.description || '',
+          };
+        } else {
+          // Product item - need to find matching batch
+          const productId = item.product?._id || item.product;
+          const batchId = item.batch?._id || item.batch;
+
+          // Find matching batch in products array
+          let matchedBatch = null;
+          if (productId && batchId) {
+            matchedBatch = products.find(b =>
+              b.productId === productId && b.batchId === batchId
+            );
+          } else if (productId) {
+            // If no batchId, try to find any batch for this product
+            matchedBatch = products.find(b => b.productId === productId);
+          }
+
+          return {
+            itemType: 'product',
+            product: productId || '',
+            batch: batchId || null,
+            selectedBatch: matchedBatch ? JSON.stringify(matchedBatch) : '',
+            productName: item.productName || item.product?.name || '',
+            hsnCode: item.hsnCode || item.product?.hsnCode || '',
+            quantity: item.quantity || 1,
+            unit: item.unit || 'pcs',
+            sellingPrice: item.sellingPrice || 0,
+            gstRate: item.gstRate || 0,
+            cessRate: item.cessRate || 0,
+            batchNo: item.batchNo || '',
+            expiryDate: item.expiryDate || '',
+            description: item.description || '',
+          };
+        }
+      });
+      setInvoiceItems(mappedItems);
+
+      // Pre-fill tax type and discount
+      if (challan.taxType) {
+        setTaxType(challan.taxType);
+      }
+      if (challan.discount) {
+        setDiscount(challan.discount);
+      }
+      if (challan.notes) {
+        setNotes(challan.notes);
+      }
+
+      // Pre-fill transportation details
+      if (challan.transportMode || challan.vehicleNumber || challan.eWayBillNumber) {
+        setShowTransport(true);
+        setTransport({
+          mode: challan.transportMode || '',
+          docNumber: challan.transportDocNumber || '',
+          docDate: challan.transportDocDate ? new Date(challan.transportDocDate).toISOString().split('T')[0] : '',
+          vehicleNumber: challan.vehicleNumber || '',
+          approxDist: challan.approxDist || '',
+          pos: challan.pos || '',
+          supplyDate: challan.supplyDate ? new Date(challan.supplyDate).toISOString().split('T')[0] : '',
+          transporterId: challan.transporterId || '',
+          transporterName: challan.transporterName || '',
+        });
+      }
+
+      // Pre-fill PO details
+      if (challan.poNumber || challan.poDate) {
+        setShowPO(true);
+        setPo({
+          poNumber: challan.poNumber || '',
+          poDate: challan.poDate ? new Date(challan.poDate).toISOString().split('T')[0] : '',
+        });
+      }
+
+      // Pre-fill additional details
+      if (challan.eWayBillNumber || challan.deliveryNote || challan.referenceNo || challan.destination) {
+        setShowAdditional(true);
+        setAdditionalDetails({
+          eWayBillNumber: challan.eWayBillNumber || '',
+          deliveryNote: challan.deliveryNote || '',
+          referenceNo: challan.referenceNo || '',
+          otherReferences: challan.otherReferences || '',
+          termsOfDelivery: challan.termsOfDelivery || '',
+          destination: challan.destination || '',
+        });
+      }
+
+      toast.success('Challan data loaded! Review and create invoice.');
+    } catch (error) {
+      console.error('Error loading challan:', error);
+      toast.error('Failed to load challan data');
     }
   };
 
@@ -604,6 +738,20 @@ function NewInvoiceContent() {
           toast.success('Invoice created & proforma updated!');
         } catch (updateError) {
           console.error('Failed to update proforma:', updateError);
+          toast.success('Invoice created successfully!');
+          // Don't block the flow - invoice is already created
+        }
+      }
+      // If this invoice was created from a delivery challan, update the challan
+      else if (fromChallanId) {
+        try {
+          await deliveryChallansAPI.update(fromChallanId, {
+            convertedToInvoiceId: invoice._id,
+            status: 'ACCEPTED'
+          });
+          toast.success('Invoice created & challan updated!');
+        } catch (updateError) {
+          console.error('Failed to update challan:', updateError);
           toast.success('Invoice created successfully!');
           // Don't block the flow - invoice is already created
         }

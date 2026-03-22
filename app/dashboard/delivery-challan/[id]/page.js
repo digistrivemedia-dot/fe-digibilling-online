@@ -5,9 +5,9 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
-import PageLoader from '@/components/PageLoader';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { deliveryChallansAPI, shopAPI } from '@/utils/api';
-import { HiPencil, HiTrash, HiPrinter, HiTruck } from 'react-icons/hi';
+import { HiPencil, HiTrash, HiPrinter, HiTruck, HiDocumentText } from 'react-icons/hi';
 
 const STATUS_COLOR = {
     DRAFT: 'bg-gray-100 text-gray-700',
@@ -50,8 +50,12 @@ export default function DeliveryChallanDetail() {
         finally { setDeleting(false); }
     };
 
+    const handleConvert = () => {
+        // Redirect to invoice creation page with challan data
+        router.push(`/dashboard/invoices/new?fromChallan=${params.id}`);
+    };
+
     if (loading || !user) return null;
-    if (loadingData) return <DashboardLayout><PageLoader /></DashboardLayout>;
 
     const shop = shopSettings || {};
     const c = challan || {};
@@ -60,6 +64,11 @@ export default function DeliveryChallanDetail() {
         <>
             <style>{`@media print{body *{visibility:hidden}.dc,.dc *{visibility:visible}.dc{position:fixed;left:0;top:0;width:100%}.no-print{display:none!important}}`}</style>
             <DashboardLayout>
+                {loadingData ? (
+                    <div className="flex items-center justify-center min-h-[60vh]">
+                        <LoadingSpinner size="lg" text="Loading delivery challan..." />
+                    </div>
+                ) : (
                 <div className="max-w-4xl mx-auto space-y-4">
                     {/* Action bar */}
                     <div className="no-print flex items-center justify-between bg-white rounded-xl border border-gray-200 px-6 py-4">
@@ -68,6 +77,18 @@ export default function DeliveryChallanDetail() {
                             {challan && <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_COLOR[challan.status] || STATUS_COLOR.DRAFT}`}>{challan.status}</span>}
                         </div>
                         <div className="flex items-center gap-2">
+                            {/* Convert to Invoice */}
+                            {!challan?.convertedToInvoiceId ? (
+                                <button onClick={handleConvert}
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium">
+                                    <HiDocumentText className="w-4 h-4" />Convert to Invoice
+                                </button>
+                            ) : (
+                                <button onClick={() => router.push(`/dashboard/invoices/${challan.convertedToInvoiceId}`)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 text-sm font-medium">
+                                    <HiDocumentText className="w-4 h-4" />View Invoice
+                                </button>
+                            )}
                             <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium">
                                 <HiPrinter className="w-4 h-4" />Print / PDF
                             </button>
@@ -173,6 +194,7 @@ export default function DeliveryChallanDetail() {
                         </div>
                     )}
                 </div>
+                )}
             </DashboardLayout>
 
             {deleteConfirm && (

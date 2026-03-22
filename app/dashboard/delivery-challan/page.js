@@ -10,7 +10,7 @@ import { deliveryChallansAPI } from '@/utils/api';
 import Link from 'next/link';
 import {
     HiPlus, HiEye, HiPencil, HiTrash, HiSearch,
-    HiChevronLeft, HiChevronRight, HiTruck,
+    HiChevronLeft, HiChevronRight, HiTruck, HiDocumentText,
 } from 'react-icons/hi';
 
 const PAGE_SIZE = 10;
@@ -34,10 +34,24 @@ export default function DeliveryChallansPage() {
     const [deleteConfirm, setDeleteConfirm] = useState(null);
     const [deleting, setDeleting] = useState(false);
 
+    // Convert to Invoice state
+    const [convertConfirm, setConvertConfirm] = useState(null);
+
     useEffect(() => {
         if (!loading && !user) router.push('/login');
         else if (user) loadData();
     }, [user, loading]);
+
+    // Reload data when page becomes visible
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!document.hidden && user) {
+                loadData();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [user]);
 
     const loadData = async () => {
         setLoadingData(true);
@@ -76,6 +90,12 @@ export default function DeliveryChallansPage() {
         } finally {
             setDeleting(false);
         }
+    };
+
+    const handleConvertToInvoice = () => {
+        // Redirect to invoice creation page with challan data
+        router.push(`/dashboard/invoices/new?fromChallan=${convertConfirm._id}`);
+        setConvertConfirm(null);
     };
 
     if (loading || !user) return null;
@@ -159,7 +179,28 @@ export default function DeliveryChallansPage() {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right">
-                                                    <div className="flex items-center justify-end gap-2">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        {/* Convert to Invoice button */}
+                                                        {!c.convertedToInvoiceId ? (
+                                                            <button
+                                                                onClick={() => setConvertConfirm(c)}
+                                                                className="flex items-center gap-1.5 px-2.5 py-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors text-xs font-semibold"
+                                                                title="Convert to Invoice"
+                                                            >
+                                                                <HiDocumentText className="w-3.5 h-3.5" />
+                                                                Invoice
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => router.push(`/dashboard/invoices/${c.convertedToInvoiceId}`)}
+                                                                className="flex items-center gap-1.5 px-2.5 py-1.5 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors text-xs font-semibold"
+                                                                title="View converted invoice"
+                                                            >
+                                                                <HiDocumentText className="w-3.5 h-3.5" />
+                                                                View Invoice
+                                                            </button>
+                                                        )}
+
                                                         <button onClick={() => router.push(`/dashboard/delivery-challan/${c._id}`)}
                                                             className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors" title="View">
                                                             <HiEye className="w-4 h-4" />
@@ -213,6 +254,38 @@ export default function DeliveryChallansPage() {
                     )}
                 </div>
             </div>
+
+            {/* Convert to Invoice Confirmation Modal */}
+            {convertConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+                        <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                            <HiDocumentText className="w-7 h-7 text-emerald-600" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">Convert to Invoice?</h3>
+                        <p className="text-sm text-gray-500 mb-1">
+                            <span className="font-semibold text-gray-700">{convertConfirm.challanNumber}</span> will be converted into a new invoice.
+                        </p>
+                        <p className="text-xs text-gray-400 mb-6">
+                            You'll be redirected to review and complete the invoice.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setConvertConfirm(null)}
+                                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConvertToInvoice}
+                                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
+                            >
+                                Convert
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Delete confirm */}
             {deleteConfirm && (
