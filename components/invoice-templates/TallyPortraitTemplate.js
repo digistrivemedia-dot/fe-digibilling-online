@@ -398,8 +398,10 @@ export default function TallyPortraitTemplate({ invoice, shopSettings }) {
             {/* ── Terms & Conditions ───────────────────────── */}
             {hasTerms && (
                 <div style={{ border: B, padding: '3px 5px', marginBottom: '4px', fontSize: '9px' }}>
-                    <strong>Terms &amp; Conditions: </strong>
-                    {shopSettings.invoiceTerms || shopSettings.termsAndConditions}
+                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Terms &amp; Conditions: </div>
+                    <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+                        {shopSettings.invoiceTerms || shopSettings.termsAndConditions}
+                    </div>
                 </div>
             )}
 

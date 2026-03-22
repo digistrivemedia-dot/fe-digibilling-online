@@ -286,7 +286,7 @@ export default function ModernTemplate({ invoice, shopSettings }) {
             {(shopSettings?.invoiceTerms || shopSettings?.termsAndConditions) && (
                 <div className="mt-6 pt-4 border-t border-gray-200">
                     <h3 className="text-sm font-semibold text-gray-700 mb-2">Terms & Conditions:</h3>
-                    <p className="text-xs text-gray-600 whitespace-pre-line">
+                    <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">
                         {shopSettings.invoiceTerms || shopSettings.termsAndConditions}
                     </p>
                 </div>

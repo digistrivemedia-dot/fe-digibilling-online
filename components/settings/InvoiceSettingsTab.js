@@ -97,6 +97,76 @@ export default function InvoiceSettingsTab() {
         reader.readAsDataURL(file);
     };
 
+    // Formatting toolbar helper — inserts prefix at each selected line or appends a new line
+    const insertTermsFormat = (prefix) => {
+        const textarea = document.getElementById('invoiceTermsArea');
+        if (!textarea) return;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const current = settings.invoiceTerms || '';
+
+        if (start === end) {
+            // No selection — just insert a new line with the prefix
+            const before = current.slice(0, start);
+            const after = current.slice(end);
+            const needsNewline = before.length > 0 && !before.endsWith('\n');
+            const inserted = (needsNewline ? '\n' : '') + prefix;
+            const newVal = before + inserted + after;
+            setSettings(p => ({ ...p, invoiceTerms: newVal }));
+            setTimeout(() => {
+                textarea.selectionStart = textarea.selectionEnd = start + inserted.length;
+                textarea.focus();
+            }, 0);
+        } else {
+            // Selection — prefix every line in the selection
+            const before = current.slice(0, start);
+            const selected = current.slice(start, end);
+            const after = current.slice(end);
+            const prefixed = selected.split('\n').map(line => prefix + line).join('\n');
+            const newVal = before + prefixed + after;
+            setSettings(p => ({ ...p, invoiceTerms: newVal }));
+            setTimeout(() => {
+                textarea.selectionStart = start;
+                textarea.selectionEnd = start + prefixed.length;
+                textarea.focus();
+            }, 0);
+        }
+    };
+
+    const insertNumberedList = () => {
+        const textarea = document.getElementById('invoiceTermsArea');
+        if (!textarea) return;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const current = settings.invoiceTerms || '';
+        const before = current.slice(0, start);
+        const selected = current.slice(start, end);
+        const after = current.slice(end);
+        const lines = selected ? selected.split('\n') : [''];
+        const prefixed = lines.map((line, i) => `${i + 1}. ${line}`).join('\n');
+        const needsNewline = before.length > 0 && !before.endsWith('\n');
+        const newVal = before + (needsNewline ? '\n' : '') + prefixed + after;
+        setSettings(p => ({ ...p, invoiceTerms: newVal }));
+        setTimeout(() => { textarea.focus(); }, 0);
+    };
+
+    const insertAlphaList = () => {
+        const textarea = document.getElementById('invoiceTermsArea');
+        if (!textarea) return;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const current = settings.invoiceTerms || '';
+        const before = current.slice(0, start);
+        const selected = current.slice(start, end);
+        const after = current.slice(end);
+        const lines = selected ? selected.split('\n') : [''];
+        const prefixed = lines.map((line, i) => `${String.fromCharCode(65 + i)}. ${line}`).join('\n');
+        const needsNewline = before.length > 0 && !before.endsWith('\n');
+        const newVal = before + (needsNewline ? '\n' : '') + prefixed + after;
+        setSettings(p => ({ ...p, invoiceTerms: newVal }));
+        setTimeout(() => { textarea.focus(); }, 0);
+    };
+
     const TEMPLATES = [
         {
             id: 'our-format',
@@ -395,15 +465,61 @@ export default function InvoiceSettingsTab() {
                 </div>
             </div>
 
-            {/* Terms */}
+            {/* Terms & Conditions */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                <div className="flex items-center space-x-2 pb-4 border-b border-gray-200 mb-5">
+                <div className="flex items-center space-x-2 pb-4 border-b border-gray-200 mb-4">
                     <HiDocument className="w-5 h-5 text-blue-600" />
-                    <h2 className="text-lg font-bold text-gray-900">Invoice Terms & Conditions</h2>
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">Invoice Terms & Conditions</h2>
+                        <p className="text-xs text-gray-400 mt-0.5">These will appear at the bottom of every invoice</p>
+                    </div>
                 </div>
-                <textarea name="invoiceTerms" value={settings.invoiceTerms} onChange={handleChange} rows={4}
-                    placeholder="e.g. Goods once sold will not be returned..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all resize-none" />
+
+                {/* Formatting Toolbar */}
+                <div className="flex flex-wrap items-center gap-2 mb-3 p-2 bg-gray-50 border border-gray-200 rounded-xl">
+                    <span className="text-xs font-semibold text-gray-500 mr-1">Insert:</span>
+
+                    <button type="button"
+                        onClick={() => insertTermsFormat('• ')}
+                        title="Add bullet point"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-all shadow-sm">
+                        <span className="text-base leading-none">•</span> Bullet Point
+                    </button>
+
+                    <div className="flex-1" />
+
+                    {settings.invoiceTerms && (
+                        <button type="button"
+                            onClick={() => setSettings(p => ({ ...p, invoiceTerms: '' }))}
+                            className="px-2.5 py-1.5 text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all">
+                            Clear
+                        </button>
+                    )}
+                </div>
+
+                {/* Tip */}
+                <p className="text-xs text-gray-400 mb-2">
+                    💡 Tip: Select lines of text before clicking a button to format them, or click to insert at cursor.
+                </p>
+
+                <textarea
+                    id="invoiceTermsArea"
+                    name="invoiceTerms"
+                    value={settings.invoiceTerms}
+                    onChange={handleChange}
+                    rows={7}
+                    placeholder={`e.g.\n• Goods once sold will not be returned.\n• Payment due within 30 days.\n• Subject to local jurisdiction.`}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all font-mono leading-relaxed resize-y"
+                    style={{ whiteSpace: 'pre-wrap' }}
+                />
+
+                {/* Live Preview */}
+                {settings.invoiceTerms && (
+                    <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Preview (as it will appear on invoice)</p>
+                        <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">{settings.invoiceTerms}</p>
+                    </div>
+                )}
             </div>
 
             {/* Save */}

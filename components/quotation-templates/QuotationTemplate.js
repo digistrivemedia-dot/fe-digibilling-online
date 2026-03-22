@@ -231,7 +231,7 @@ export default function QuotationTemplate({ quotation, shopSettings }) {
                     <div className="mb-4 p-4 rounded-xl" style={{ backgroundColor: brandLight, borderLeft: `3px solid ${brand}` }}>
                         <h3 className="text-[10px] font-bold uppercase tracking-widest mb-1.5"
                             style={{ color: brand }}>Terms &amp; Conditions</h3>
-                        <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">
+                        <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
                             {quotation.terms}
                         </p>
                     </div>
