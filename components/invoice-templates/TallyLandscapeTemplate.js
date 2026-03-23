@@ -124,9 +124,17 @@ export default function TallyLandscapeTemplate({ invoice, shopSettings }) {
                             <td style={{ width: '52%', border: B, borderTop: 'none', padding: '0', verticalAlign: 'top' }}>
                                 <div style={{ padding: '4px 5px', borderBottom: BD }}>
                                     <div style={{ fontSize: '9px', color: '#555', marginBottom: '1px' }}>Consignee (Ship to)</div>
-                                    <div style={{ fontWeight: 'bold', fontSize: '12px' }}>{invoice.customerName}</div>
-                                    {invoice.customerAddress && <div style={{ fontSize: '10px' }}>{invoice.customerAddress}</div>}
-                                    {invoice.customerPhone && <div style={{ fontSize: '10px' }}>Ph: {invoice.customerPhone}</div>}
+                                    <div style={{ fontWeight: 'bold', fontSize: '12px' }}>
+                                        {invoice.shipToName || invoice.customerName}
+                                    </div>
+                                    {invoice.shipToAddress
+                                        ? <div style={{ fontSize: '10px' }}>{invoice.shipToAddress}</div>
+                                        : invoice.customerAddress && <div style={{ fontSize: '10px' }}>{invoice.customerAddress}</div>
+                                    }
+                                    {(invoice.shipToCity || invoice.shipToState)
+                                        ? <div style={{ fontSize: '10px' }}>{[invoice.shipToCity, invoice.shipToState, invoice.shipToPincode].filter(Boolean).join(', ')}</div>
+                                        : null
+                                    }
                                     {invoice.customerGstin
                                         ? <div style={{ fontSize: '10px' }}>GSTIN/UIN : <strong>{invoice.customerGstin}</strong></div>
                                         : <div style={{ fontSize: '10px' }}>GSTIN/UIN : </div>

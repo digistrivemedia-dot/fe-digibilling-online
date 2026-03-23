@@ -41,15 +41,41 @@ export default function ModernTemplate({ invoice, shopSettings }) {
                 </div>
             </div>
 
-            {/* Customer Details */}
+            {/* Customer Details — Bill To + optional Ship To */}
             <div className="mb-6">
-                <h2 className="text-sm font-semibold text-gray-600 uppercase mb-2">Bill To:</h2>
-                <div className="text-gray-900">
-                    <p className="font-semibold text-lg">{invoice.customerName}</p>
-                    {invoice.customerPhone && <p className="text-sm">Phone: {invoice.customerPhone}</p>}
-                    {invoice.customerAddress && <p className="text-sm">{invoice.customerAddress}</p>}
-                    {invoice.customerGstin && <p className="text-sm">GSTIN: {invoice.customerGstin}</p>}
-                </div>
+                {(invoice.shipToName || invoice.shipToAddress) ? (
+                    <div className="grid grid-cols-2 gap-6">
+                        <div>
+                            <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Bill To:</h2>
+                            <div className="text-gray-900">
+                                <p className="font-semibold text-lg">{invoice.customerName}</p>
+                                {invoice.customerPhone && <p className="text-sm">Phone: {invoice.customerPhone}</p>}
+                                {invoice.customerAddress && <p className="text-sm">{invoice.customerAddress}</p>}
+                                {invoice.customerGstin && <p className="text-sm">GSTIN: {invoice.customerGstin}</p>}
+                            </div>
+                        </div>
+                        <div>
+                            <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Ship To:</h2>
+                            <div className="text-gray-900">
+                                <p className="font-semibold text-lg">{invoice.shipToName || invoice.customerName}</p>
+                                {invoice.shipToAddress && <p className="text-sm">{invoice.shipToAddress}</p>}
+                                {(invoice.shipToCity || invoice.shipToState) && (
+                                    <p className="text-sm">{[invoice.shipToCity, invoice.shipToState, invoice.shipToPincode].filter(Boolean).join(', ')}</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div>
+                        <h2 className="text-sm font-semibold text-gray-600 uppercase mb-2">Bill To:</h2>
+                        <div className="text-gray-900">
+                            <p className="font-semibold text-lg">{invoice.customerName}</p>
+                            {invoice.customerPhone && <p className="text-sm">Phone: {invoice.customerPhone}</p>}
+                            {invoice.customerAddress && <p className="text-sm">{invoice.customerAddress}</p>}
+                            {invoice.customerGstin && <p className="text-sm">GSTIN: {invoice.customerGstin}</p>}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Purchase Order Reference — only if provided */}

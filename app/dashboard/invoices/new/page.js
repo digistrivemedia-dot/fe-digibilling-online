@@ -690,6 +690,12 @@ function NewInvoiceContent() {
         balanceAmount: paymentStatus === 'PAID' ? 0 : totals.finalTotal - paidAmount,
         paymentDetails,
         notes,
+        // Ship To details (only include if enableShipTo is on and data exists)
+        shipToName: shipTo.name || undefined,
+        shipToAddress: shipTo.address || undefined,
+        shipToCity: shipTo.city || undefined,
+        shipToState: shipTo.state || undefined,
+        shipToPincode: shipTo.pincode || undefined,
         // Transportation details
         transportMode: transport.mode,
         transportDocNumber: transport.docNumber,
