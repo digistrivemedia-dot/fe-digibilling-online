@@ -306,6 +306,10 @@ export const inventoryAPI = {
   getLowStock: () => apiCall('/inventory/alerts/low-stock'),
   getStats: () => apiCall('/inventory/stats'),
   getValuation: () => apiCall('/inventory/valuation'),
+  getTopSelling: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiCall(`/inventory/top-selling?${query}`);
+  },
 };
 
 // Reports API

@@ -127,7 +127,7 @@ export default function StockAdjustments() {
     const loadProducts = async () => {
         try {
             const data = await productsAPI.getAllWithBatches({});
-            setProducts(data);
+            setProducts(data.products || data); // Handle both old and new response format
         } catch (err) {
             console.error(err);
         } finally {

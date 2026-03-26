@@ -6,7 +6,7 @@ import PageLoader from '@/components/PageLoader';
 import { inventoryAPI } from '@/utils/api';
 import {
   HiSearch, HiExclamationCircle, HiClock, HiBan,
-  HiChevronLeft, HiChevronRight,
+  HiChevronLeft, HiChevronRight, HiTrendingUp, HiCalendar,
 } from 'react-icons/hi';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -23,7 +23,22 @@ export default function InventoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // Top selling state
+  const [topSellingProducts, setTopSellingProducts] = useState([]);
+  const [loadingTopSelling, setLoadingTopSelling] = useState(false);
+  const [dateFilter, setDateFilter] = useState('all'); // 'all', '30d', '2m', '3m', '6m', '1y', '5y', 'custom'
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [sortBy, setSortBy] = useState('quantity'); // 'quantity', 'orders', 'revenue'
+  const [sortOrder, setSortOrder] = useState('desc'); // 'asc', 'desc'
+
   useEffect(() => { loadData(); }, []);
+
+  useEffect(() => {
+    if (activeTab === 'top-selling') {
+      loadTopSelling();
+    }
+  }, [activeTab, dateFilter, customStartDate, customEndDate]);
 
   // Reset to page 1 on tab / search / pageSize change
   useEffect(() => { setCurrentPage(1); }, [activeTab, search, pageSize]);
@@ -49,6 +64,82 @@ export default function InventoryPage() {
     }
   };
 
+  const loadTopSelling = async () => {
+    setLoadingTopSelling(true);
+    try {
+      const params = {};
+
+      // Calculate date range based on filter
+      if (dateFilter !== 'all') {
+        const today = new Date();
+        let startDate = new Date();
+
+        switch (dateFilter) {
+          case '30d':
+            startDate.setDate(today.getDate() - 30);
+            break;
+          case '2m':
+            startDate.setMonth(today.getMonth() - 2);
+            break;
+          case '3m':
+            startDate.setMonth(today.getMonth() - 3);
+            break;
+          case '6m':
+            startDate.setMonth(today.getMonth() - 6);
+            break;
+          case '1y':
+            startDate.setFullYear(today.getFullYear() - 1);
+            break;
+          case '5y':
+            startDate.setFullYear(today.getFullYear() - 5);
+            break;
+          case 'custom':
+            if (customStartDate) params.startDate = customStartDate;
+            if (customEndDate) params.endDate = customEndDate;
+            break;
+        }
+
+        if (dateFilter !== 'custom') {
+          params.startDate = startDate.toISOString().split('T')[0];
+        }
+      }
+
+      const data = await inventoryAPI.getTopSelling(params);
+      setTopSellingProducts(data || []);
+    } catch (error) {
+      console.error('Error loading top selling products:', error);
+    } finally {
+      setLoadingTopSelling(false);
+    }
+  };
+
+  // Sorted top selling products
+  const sortedTopSelling = useMemo(() => {
+    if (!topSellingProducts.length) return [];
+    const sorted = [...topSellingProducts];
+    sorted.sort((a, b) => {
+      let aVal, bVal;
+      switch (sortBy) {
+        case 'quantity':
+          aVal = a.totalQuantitySold;
+          bVal = b.totalQuantitySold;
+          break;
+        case 'orders':
+          aVal = a.totalOrders;
+          bVal = b.totalOrders;
+          break;
+        case 'revenue':
+          aVal = a.totalRevenue;
+          bVal = b.totalRevenue;
+          break;
+        default:
+          return 0;
+      }
+      return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
+    });
+    return sorted;
+  }, [topSellingProducts, sortBy, sortOrder]);
+
   // Filtered (all rows for active tab + search)
   const filteredData = useMemo(() => {
     let data = [];
@@ -57,6 +148,7 @@ export default function InventoryPage() {
       case 'low-stock': data = lowStockItems; break;
       case 'near-expiry': data = nearExpiryBatches; break;
       case 'expired': data = expiredBatches; break;
+      case 'top-selling': data = sortedTopSelling; break;
       default: data = [];
     }
     if (!search.trim()) return data;
@@ -64,12 +156,15 @@ export default function InventoryPage() {
     if (activeTab === 'low-stock') {
       return data.filter(item => item.name?.toLowerCase().includes(s));
     }
+    if (activeTab === 'top-selling') {
+      return data.filter(item => item.displayName?.toLowerCase().includes(s));
+    }
     return data.filter(item =>
       item.productInfo?.name?.toLowerCase().includes(s) ||
       item.product?.name?.toLowerCase().includes(s) ||
       item.batchNo?.toLowerCase().includes(s)
     );
-  }, [activeTab, search, allBatches, lowStockItems, nearExpiryBatches, expiredBatches]);
+  }, [activeTab, search, allBatches, lowStockItems, nearExpiryBatches, expiredBatches, sortedTopSelling]);
 
   // Pagination math
   const totalRows = filteredData.length;
@@ -154,6 +249,7 @@ export default function InventoryPage() {
             <nav className="flex -mb-px overflow-x-auto">
               {[
                 { key: 'all', label: 'All Stock', icon: null, count: null },
+                { key: 'top-selling', label: 'Top Selling', icon: HiTrendingUp, count: null },
                 { key: 'low-stock', label: 'Low Stock', icon: HiExclamationCircle, count: lowStockItems.length },
                 { key: 'near-expiry', label: 'Near Expiry', icon: HiClock, count: nearExpiryBatches.length },
                 { key: 'expired', label: 'Expired', icon: HiBan, count: expiredBatches.length },
@@ -161,9 +257,11 @@ export default function InventoryPage() {
                 const active = activeTab === key;
                 const activeClass = key === 'expired'
                   ? 'border-red-500 text-red-600'
-                  : key === 'all'
-                    ? 'border-emerald-500 text-emerald-600'
-                    : 'border-orange-500 text-orange-600';
+                  : key === 'top-selling'
+                    ? 'border-blue-500 text-blue-600'
+                    : key === 'all'
+                      ? 'border-emerald-500 text-emerald-600'
+                      : 'border-orange-500 text-orange-600';
                 return (
                   <button key={key} onClick={() => setActiveTab(key)}
                     className={`px-6 py-4 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap ${active ? activeClass : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -177,34 +275,141 @@ export default function InventoryPage() {
             </nav>
           </div>
 
-          {/* Search + Show entries */}
-          <div className="p-4 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="relative w-full sm:max-w-md">
-              <HiSearch className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by product name or batch number..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900"
-              />
+          {/* Search + Show entries / Top Selling Filters */}
+          {activeTab === 'top-selling' ? (
+            <div className="p-4 border-b space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <HiCalendar className="w-5 h-5 text-gray-400" />
+                  <select
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  >
+                    <option value="all">All Time</option>
+                    <option value="30d">Last 30 Days</option>
+                    <option value="2m">Last 2 Months</option>
+                    <option value="3m">Last 3 Months</option>
+                    <option value="6m">Last 6 Months</option>
+                    <option value="1y">Last 1 Year</option>
+                    <option value="5y">Last 5 Years</option>
+                    <option value="custom">Custom Range</option>
+                  </select>
+                </div>
+
+                {dateFilter === 'custom' && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      placeholder="Start date"
+                    />
+                    <span className="text-gray-500">to</span>
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      placeholder="End date"
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 ml-auto">
+                  <span className="text-sm text-gray-600">Sort by:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                  >
+                    <option value="quantity">Quantity Sold</option>
+                    <option value="orders">Order Count</option>
+                    <option value="revenue">Revenue</option>
+                  </select>
+                  <button
+                    onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 text-gray-700"
+                  >
+                    {sortOrder === 'desc' ? '↓ High to Low' : '↑ Low to High'}
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600 whitespace-nowrap">
-              <span>Show</span>
-              <select
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 bg-white"
-              >
-                {PAGE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-              <span>entries</span>
+          ) : (
+            <div className="p-4 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="relative w-full sm:max-w-md">
+                <HiSearch className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by product name or batch number..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900"
+                />
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600 whitespace-nowrap">
+                <span>Show</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 bg-white"
+                >
+                  {PAGE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <span>entries</span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Table */}
           <div className="overflow-x-auto">
-            {activeTab === 'low-stock' ? (
+            {activeTab === 'top-selling' ? (
+              loadingTopSelling ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-gray-500">Loading top selling products...</div>
+                </div>
+              ) : (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product/Service</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Qty Sold</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Orders</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {pageRows.length === 0 ? (
+                      <tr><td colSpan="5" className="px-6 py-12 text-center text-gray-500">No sales data found for the selected period.</td></tr>
+                    ) : (
+                      pageRows.map((item, idx) => (
+                        <tr key={item._id || idx} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-sm font-bold text-blue-600">#{startIdx + idx + 1}</td>
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-gray-900">{item.displayName || 'Unknown'}</div>
+                            {item.itemType && (
+                              <div className="text-xs text-gray-500">{item.itemType === 'service' ? 'Service' : 'Product'}</div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-right text-gray-900 font-semibold">
+                            {item.totalQuantitySold?.toLocaleString('en-IN') || 0} {item.unit || ''}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-right text-gray-700">
+                            {item.totalOrders?.toLocaleString('en-IN') || 0}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-right font-semibold text-green-600">
+                            ₹{item.totalRevenue?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )
+            ) : activeTab === 'low-stock' ? (
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
