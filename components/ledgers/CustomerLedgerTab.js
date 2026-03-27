@@ -41,13 +41,16 @@ export default function CustomerLedgerTab({ dateRange, setDateRange }) {
 
         try {
             // Fetch customers and invoices
-            const [allCustomers, invoices] = await Promise.all([
+            const [allCustomers, invoiceResponse] = await Promise.all([
                 customersAPI.getAll(),
                 invoicesAPI.getAll({
                     startDate: dateRange.startDate,
                     endDate: dateRange.endDate
                 })
             ]);
+
+            // Extract invoices array from response (API returns { invoices: [...], pagination: {...} })
+            const invoices = Array.isArray(invoiceResponse) ? invoiceResponse : (invoiceResponse.invoices || []);
 
             // Group invoices by customer
             const customerLedgers = {};
