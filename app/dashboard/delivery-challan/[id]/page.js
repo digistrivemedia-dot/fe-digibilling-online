@@ -62,7 +62,16 @@ export default function DeliveryChallanDetail() {
 
     return (
         <>
-            <style>{`@media print{body *{visibility:hidden}.dc,.dc *{visibility:visible}.dc{position:fixed;left:0;top:0;width:100%}.no-print{display:none!important}}`}</style>
+            <style>{`
+                @page { size: A4 auto; margin: 10mm; }
+                @media print {
+                    body * { visibility: hidden; }
+                    .dc, .dc * { visibility: visible; }
+                    html, body { background: white; margin: 0; padding: 0; width: auto; }
+                    .dc { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; box-shadow: none; border: none; }
+                    .no-print { display: none !important; }
+                }
+            `}</style>
             <DashboardLayout>
                 {loadingData ? (
                     <div className="flex items-center justify-center min-h-[60vh]">

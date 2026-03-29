@@ -93,7 +93,7 @@ export default function TallyLandscapeTemplate({ invoice, shopSettings }) {
                 }
             `}</style>
 
-            <div className="invoice-print" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#000', background: '#fff' }}>
+            <div className="invoice-print bg-white p-4 sm:p-8 rounded-lg shadow-sm border border-gray-200" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#000', overflowX: 'auto' }}>
 
                 {/* ── Business Header (two-col for landscape) ── */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: B, paddingBottom: '5px', marginBottom: '0' }}>

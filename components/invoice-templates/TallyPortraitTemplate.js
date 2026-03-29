@@ -77,7 +77,7 @@ export default function TallyPortraitTemplate({ invoice, shopSettings }) {
     const tdValue = { padding: '3px 4px', borderBottom: BD, fontSize: '10px', width: '22%' };
 
     return (
-        <div className="invoice-print" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#000', background: '#fff' }}>
+        <div className="invoice-print bg-white p-4 sm:p-8 rounded-lg shadow-sm border border-gray-200" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#000' }}>
 
             {/* ── Business Header ─────────────────────────── */}
             <div style={{ borderBottom: B, paddingBottom: '6px', marginBottom: '0', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>

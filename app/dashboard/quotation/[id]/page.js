@@ -76,8 +76,8 @@ export default function QuotationDetail() {
     <>
       <style jsx global>{`
         @page {
-          size: A4;
-          margin: 0;
+          size: A4 auto;
+          margin: 10mm;
         }
 
         @media print {
@@ -91,7 +91,7 @@ export default function QuotationDetail() {
           }
 
           html, body {
-            width: 210mm;
+            width: auto;
             height: auto;
             margin: 0;
             padding: 0;
@@ -112,10 +112,10 @@ export default function QuotationDetail() {
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
-            padding: 15mm;
+            padding: 0;
             margin: 0;
-            width: 210mm;
-            max-width: 210mm;
+            width: 100%;
+            max-width: 100%;
             background: white;
           }
 
