@@ -78,8 +78,8 @@ export default function ModernTemplate({ invoice, shopSettings }) {
                 )}
             </div>
 
-            {/* Purchase Order Reference — only if provided */}
-            {(invoice.poNumber || invoice.poDate) && (
+            {/* Purchase Order & e-Way Bill Reference */}
+            {(invoice.poNumber || invoice.poDate || invoice.eWayBillNumber) && (
                 <div className="mb-6 flex gap-6 text-sm">
                     {invoice.poNumber && (
                         <div>
@@ -90,7 +90,13 @@ export default function ModernTemplate({ invoice, shopSettings }) {
                     {invoice.poDate && (
                         <div>
                             <span className="text-gray-500 font-medium">P.O. Date: </span>
-                            <span className="text-gray-900">{new Date(invoice.poDate).toLocaleDateString('en-IN')}</span>
+                            <span className="text-gray-900 font-semibold">{new Date(invoice.poDate).toLocaleDateString('en-IN')}</span>
+                        </div>
+                    )}
+                    {invoice.eWayBillNumber && (
+                        <div>
+                            <span className="text-gray-500 font-medium">e-Way Bill No.: </span>
+                            <span className="text-gray-900 font-semibold">{invoice.eWayBillNumber}</span>
                         </div>
                     )}
                 </div>

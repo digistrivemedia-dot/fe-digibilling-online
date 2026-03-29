@@ -67,7 +67,7 @@ export default function TallyLandscapeTemplate({ invoice, shopSettings }) {
     const invoiceDetailRows = [
         ['Invoice No.', invoice.invoiceNumber, 'Dated', fmt(invoice.invoiceDate)],
         ['Delivery Note', invoice.deliveryNote || '', 'Mode/Terms of Payment', invoice.paymentMethod || ''],
-        ['Reference No. & Date.', invoice.referenceNo || invoice.eWayBillNumber || '', 'Other References', invoice.otherReferences || ''],
+        ['Reference No. & Date.', invoice.referenceNo || '', invoice.eWayBillNumber ? 'e-Way Bill No.' : 'Other References', invoice.eWayBillNumber ? invoice.eWayBillNumber + (invoice.otherReferences ? ` (${invoice.otherReferences})` : '') : (invoice.otherReferences || '')],
         ["Buyer's Order No.", invoice.poNumber || '', 'Dated', fmt(invoice.poDate)],
         ['Dispatch Doc No.', invoice.transportDocNumber || '', 'Delivery Note Date', fmt(invoice.transportDocDate)],
         ['Dispatched through', [invoice.transporterName, invoice.vehicleNumber].filter(Boolean).join(' | '), 'Destination', invoice.destination || invoice.pos || invoice.customerCity || ''],
