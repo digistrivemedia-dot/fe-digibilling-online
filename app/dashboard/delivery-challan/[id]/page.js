@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { deliveryChallansAPI, shopAPI } from '@/utils/api';
 import { HiPencil, HiTrash, HiPrinter, HiTruck, HiDocumentText } from 'react-icons/hi';
+import ThermalReceiptTemplate from '@/components/invoice-templates/ThermalReceiptTemplate';
 
 const STATUS_COLOR = {
     DRAFT: 'bg-gray-100 text-gray-700',
@@ -114,6 +115,9 @@ export default function DeliveryChallanDetail() {
 
                     {/* Document */}
                     {challan && (
+                        shop?.invoiceTemplate === 'thermal-receipt' ? (
+                            <ThermalReceiptTemplate invoice={c} shopSettings={shop} type="challan" />
+                        ) : (
                         <div className="dc bg-white rounded-xl border border-gray-200 p-8">
                             <div className="flex justify-between items-start mb-8">
                                 <div>
@@ -249,6 +253,7 @@ export default function DeliveryChallanDetail() {
                                 ))}
                             </div>
                         </div>
+                        )
                     )}
                 </div>
                 )}

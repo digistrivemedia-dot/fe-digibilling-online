@@ -287,6 +287,43 @@ export default function InvoiceSettingsTab() {
                 </svg>
             ),
         },
+        {
+            id: 'thermal-receipt',
+            label: 'Thermal Receipt',
+            sub: 'POS/Grocery · 80mm',
+            svg: (
+                <svg viewBox="0 0 100 200" className="w-full h-36" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="100" height="200" fill="white" stroke="#e5e7eb" strokeWidth="1" />
+                    <rect x="25" y="6" width="50" height="6" rx="2" fill="#374151" />
+                    <rect x="15" y="14" width="70" height="3" rx="1" fill="#9ca3af" />
+                    <rect x="20" y="19" width="60" height="2.5" rx="1" fill="#d1d5db" />
+                    <rect x="18" y="23" width="64" height="2.5" rx="1" fill="#d1d5db" />
+                    <line x1="10" y1="30" x2="90" y2="30" stroke="#9ca3af" strokeWidth="0.5" strokeDasharray="2,2" />
+                    <rect x="12" y="34" width="40" height="3" rx="1" fill="#6b7280" />
+                    <rect x="65" y="34" width="23" height="3" rx="1" fill="#6b7280" />
+                    {[40, 46, 52, 58, 64, 70, 76, 82, 88, 94, 100, 106].map((y) => (
+                        <g key={y}>
+                            <rect x="12" y={y} width="45" height="2.5" rx="1" fill="#d1d5db" />
+                            <rect x="60" y={y} width="28" height="2.5" rx="1" fill="#d1d5db" />
+                        </g>
+                    ))}
+                    <line x1="10" y1="112" x2="90" y2="112" stroke="#9ca3af" strokeWidth="0.5" strokeDasharray="2,2" />
+                    <rect x="12" y="116" width="40" height="3" rx="1" fill="#6b7280" />
+                    <rect x="65" y="116" width="23" height="3" rx="1" fill="#6b7280" />
+                    <rect x="12" y="122" width="40" height="3" rx="1" fill="#6b7280" />
+                    <rect x="65" y="122" width="23" height="3" rx="1" fill="#6b7280" />
+                    <rect x="12" y="128" width="40" height="3" rx="1" fill="#6b7280" />
+                    <rect x="65" y="128" width="23" height="3" rx="1" fill="#6b7280" />
+                    <line x1="10" y1="136" x2="90" y2="136" stroke="#374151" strokeWidth="1" />
+                    <rect x="12" y="140" width="30" height="4" rx="1" fill="#374151" />
+                    <rect x="60" y="140" width="28" height="4" rx="1" fill="#374151" />
+                    <line x1="10" y1="150" x2="90" y2="150" stroke="#9ca3af" strokeWidth="0.5" strokeDasharray="2,2" />
+                    <rect x="25" y="155" width="50" height="2.5" rx="1" fill="#9ca3af" />
+                    <rect x="30" y="160" width="40" height="2" rx="1" fill="#d1d5db" />
+                    <rect x="28" y="165" width="44" height="2" rx="1" fill="#d1d5db" />
+                </svg>
+            ),
+        },
     ];
 
     const ITEM_FIELDS = [
@@ -348,7 +385,7 @@ export default function InvoiceSettingsTab() {
                         <p className="text-xs text-gray-400 mt-0.5">Select the print layout for your invoices</p>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                     {TEMPLATES.map(({ id, label, sub, svg }) => {
                         const active = settings.invoiceTemplate === id;
                         return (

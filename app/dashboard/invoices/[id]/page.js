@@ -11,6 +11,7 @@ import { HiPlus, HiPencil, HiTrash, HiX, HiCurrencyRupee, HiEye } from 'react-ic
 import ModernTemplate from '@/components/invoice-templates/ModernTemplate';
 import TallyPortraitTemplate from '@/components/invoice-templates/TallyPortraitTemplate';
 import TallyLandscapeTemplate from '@/components/invoice-templates/TallyLandscapeTemplate';
+import ThermalReceiptTemplate from '@/components/invoice-templates/ThermalReceiptTemplate';
 
 export default function InvoiceDetail() {
   const { user, loading } = useAuth();
@@ -339,6 +340,8 @@ _This is a computer generated invoice_`;
           <TallyPortraitTemplate invoice={invoice} shopSettings={shopSettings} />
         ) : shopSettings?.invoiceTemplate === 'tally-landscape' ? (
           <TallyLandscapeTemplate invoice={invoice} shopSettings={shopSettings} />
+        ) : shopSettings?.invoiceTemplate === 'thermal-receipt' ? (
+          <ThermalReceiptTemplate invoice={invoice} shopSettings={shopSettings} />
         ) : (
           <ModernTemplate invoice={invoice} shopSettings={shopSettings} />
         )}

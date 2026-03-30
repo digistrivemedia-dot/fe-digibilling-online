@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { proformaInvoicesAPI, shopAPI } from '@/utils/api';
 import { HiPencil, HiTrash, HiPrinter, HiDocumentText } from 'react-icons/hi';
+import ThermalReceiptTemplate from '@/components/invoice-templates/ThermalReceiptTemplate';
 
 const STATUS_COLOR = {
     DRAFT: 'bg-gray-100 text-gray-700',
@@ -115,6 +116,9 @@ export default function ProformaInvoiceDetail() {
 
                     {/* Document */}
                     {proforma && (
+                        shop?.invoiceTemplate === 'thermal-receipt' ? (
+                            <ThermalReceiptTemplate invoice={p} shopSettings={shop} type="proforma" />
+                        ) : (
                         <div className="pp bg-white rounded-xl border border-gray-200 p-8">
                             <div className="flex justify-between items-start mb-8">
                                 <div>
@@ -284,6 +288,7 @@ export default function ProformaInvoiceDetail() {
                                 </div>
                             )}
                         </div>
+                        )
                     )}
                 </div>
                 )}
