@@ -170,7 +170,7 @@ export default function InvoiceSettingsTab() {
     const TEMPLATES = [
         {
             id: 'our-format',
-            label: 'Modern Format',
+            label: 'Classic Format',
             sub: 'Clean modern layout',
             svg: (
                 <svg viewBox="0 0 160 200" className="w-full h-36" xmlns="http://www.w3.org/2000/svg">
@@ -212,7 +212,7 @@ export default function InvoiceSettingsTab() {
         },
         {
             id: 'tally-portrait',
-            label: 'Tally Format',
+            label: 'Modern Format',
             sub: 'Market standard · Portrait',
             svg: (
                 <svg viewBox="0 0 160 200" className="w-full h-36" xmlns="http://www.w3.org/2000/svg">
@@ -253,7 +253,7 @@ export default function InvoiceSettingsTab() {
         },
         {
             id: 'tally-landscape',
-            label: 'Tally Landscape',
+            label: 'Modern landscape Format',
             sub: 'Market standard · Wide',
             svg: (
                 <svg viewBox="0 0 200 160" className="w-full h-36" xmlns="http://www.w3.org/2000/svg">

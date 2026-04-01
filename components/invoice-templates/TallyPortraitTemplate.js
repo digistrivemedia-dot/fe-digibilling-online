@@ -384,11 +384,11 @@ export default function TallyPortraitTemplate({ invoice, shopSettings }) {
             )}
 
             {/* ── Bank Details ─────────────────────────────── */}
-            {hasBankDetails && (
+            {(hasBankDetails || shopSettings?.invQrCode) && (
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px' }}>
                     <tbody>
                         <tr>
-                            <td style={{ border: B, padding: '5px', fontSize: '10px', width: '55%', verticalAlign: 'top' }}>
+                            <td style={{ border: B, padding: '5px', fontSize: '10px', width: shopSettings?.invQrCode ? '45%' : '55%', verticalAlign: 'top' }}>
                                 <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>Bank Details:</div>
                                 {shopSettings.invAccountHolder && <div>A/C Holder: {shopSettings.invAccountHolder}</div>}
                                 {shopSettings.invBankName && <div>Bank: {shopSettings.invBankName}</div>}
@@ -396,7 +396,14 @@ export default function TallyPortraitTemplate({ invoice, shopSettings }) {
                                 {shopSettings.invIfscCode && <div>IFSC: {shopSettings.invIfscCode}</div>}
                                 {shopSettings.invBranchName && <div>Branch: {shopSettings.invBranchName}</div>}
                             </td>
-                            <td style={{ border: B, padding: '5px', fontSize: '10px', verticalAlign: 'top' }}>
+                            {shopSettings?.invQrCode ? (
+                                <td style={{ border: B, padding: '5px', fontSize: '10px', verticalAlign: 'top', textAlign: 'center', width: '25%' }}>
+                                    <div style={{ fontWeight: 'bold', marginBottom: '3px', fontSize: '9px' }}>QR Code</div>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={shopSettings.invQrCode} alt="QR Code" style={{ width: '80px', height: '80px', objectFit: 'contain', border: '1px solid #ddd' }} />
+                                </td>
+                            ) : null}
+                            <td style={{ border: B, padding: '5px', fontSize: '10px', verticalAlign: 'top', width: '30%' }}>
                                 {invoice.notes ? <><strong>Notes: </strong>{invoice.notes}</> : <>&nbsp;</>}
                             </td>
                         </tr>

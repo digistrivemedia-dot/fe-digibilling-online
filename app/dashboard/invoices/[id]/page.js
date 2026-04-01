@@ -75,7 +75,10 @@ export default function InvoiceDetail() {
       toast.info('Tip: Turn OFF "Headers and footers" in print dialog for clean PDF', 6000);
       localStorage.setItem('pdfPrintTipSeen', 'true');
     }
+    const originalTitle = document.title;
+    document.title = `Invoice_${invoice?.invoiceNumber || 'Document'}`;
     window.print();
+    setTimeout(() => { document.title = originalTitle; }, 500);
   };
 
   const handleWhatsAppShare = () => {

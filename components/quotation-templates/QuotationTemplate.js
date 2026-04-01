@@ -217,6 +217,33 @@ export default function QuotationTemplate({ quotation, shopSettings }) {
                     </div>
                 </div>
 
+                {/* ── BANK DETAILS & QR CODE ──────────────────────────── */}
+                {(shopSettings?.invBankName || shopSettings?.invAccountNumber || shopSettings?.invQrCode) && (
+                    <div className="mb-4 p-4 rounded-xl" style={{ backgroundColor: brandLight, borderLeft: `3px solid ${brand}` }}>
+                        <h3 className="text-[10px] font-bold uppercase tracking-widest mb-2"
+                            style={{ color: brand }}>Bank Details</h3>
+                        <div className="flex justify-between items-start gap-6">
+                            <div className="text-sm text-gray-700 space-y-1 flex-1">
+                                {shopSettings.invAccountHolder && <p><span className="font-semibold">A/C Holder:</span> {shopSettings.invAccountHolder}</p>}
+                                {shopSettings.invBankName && <p><span className="font-semibold">Bank:</span> {shopSettings.invBankName}</p>}
+                                {shopSettings.invAccountNumber && <p><span className="font-semibold">A/C No:</span> {shopSettings.invAccountNumber}</p>}
+                                {shopSettings.invIfscCode && <p><span className="font-semibold">IFSC:</span> {shopSettings.invIfscCode}</p>}
+                                {shopSettings.invBranchName && <p><span className="font-semibold">Branch:</span> {shopSettings.invBranchName}</p>}
+                            </div>
+                            {shopSettings.invQrCode && (
+                                <div className="flex-shrink-0 text-center">
+                                    <p className="text-[9px] font-bold uppercase tracking-wide mb-2"
+                                        style={{ color: brand }}>QR Code</p>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={shopSettings.invQrCode} alt="QR Code"
+                                        className="rounded-lg"
+                                        style={{ width: '100px', height: '100px', objectFit: 'contain', border: `2px solid ${brandMid}` }} />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* ── NOTES ───────────────────────────────────────────── */}
                 {quotation.notes && (
                     <div className="mb-4 p-4 rounded-xl" style={{ backgroundColor: brandLight, borderLeft: `3px solid ${brand}` }}>

@@ -50,7 +50,12 @@ export default function QuotationDetail() {
     }
   };
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = `Quotation_${quotation?.quotationNumber || 'Document'}`;
+    window.print();
+    setTimeout(() => { document.title = originalTitle; }, 500);
+  };
 
   const handleDelete = async () => {
     setDeleting(true);

@@ -205,15 +205,24 @@ export default function ModernTemplate({ invoice, shopSettings }) {
             </div>
 
             {/* Bank Details */}
-            {(shopSettings?.invBankName || shopSettings?.invAccountNumber) && (
+            {(shopSettings?.invBankName || shopSettings?.invAccountNumber || shopSettings?.invQrCode) && (
                 <div className="mt-6 pt-4 border-t border-gray-200">
                     <h3 className="text-sm font-semibold text-gray-700 mb-2">Bank Details:</h3>
-                    <div className="text-sm text-gray-600 space-y-0.5">
-                        {shopSettings.invAccountHolder && <p>A/C Holder: {shopSettings.invAccountHolder}</p>}
-                        {shopSettings.invBankName && <p>Bank: {shopSettings.invBankName}</p>}
-                        {shopSettings.invAccountNumber && <p>A/C No: {shopSettings.invAccountNumber}</p>}
-                        {shopSettings.invIfscCode && <p>IFSC: {shopSettings.invIfscCode}</p>}
-                        {shopSettings.invBranchName && <p>Branch: {shopSettings.invBranchName}</p>}
+                    <div className="flex justify-between items-start gap-6">
+                        <div className="text-sm text-gray-600 space-y-0.5 flex-1">
+                            {shopSettings.invAccountHolder && <p>A/C Holder: {shopSettings.invAccountHolder}</p>}
+                            {shopSettings.invBankName && <p>Bank: {shopSettings.invBankName}</p>}
+                            {shopSettings.invAccountNumber && <p>A/C No: {shopSettings.invAccountNumber}</p>}
+                            {shopSettings.invIfscCode && <p>IFSC: {shopSettings.invIfscCode}</p>}
+                            {shopSettings.invBranchName && <p>Branch: {shopSettings.invBranchName}</p>}
+                        </div>
+                        {shopSettings.invQrCode && (
+                            <div className="flex-shrink-0">
+                                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">QR Code</p>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={shopSettings.invQrCode} alt="QR Code" className="w-32 h-32 border-2 border-gray-200 rounded-lg object-contain" />
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

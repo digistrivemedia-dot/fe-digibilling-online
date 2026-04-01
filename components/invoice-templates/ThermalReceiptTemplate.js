@@ -186,6 +186,27 @@ export default function ThermalReceiptTemplate({ invoice, shopSettings, type = '
                         </div>
                     )}
 
+                    {/* Bank Details & QR Code */}
+                    {(shopSettings?.invBankName || shopSettings?.invAccountNumber || shopSettings?.invQrCode) && (
+                        <div className="border-t border-dashed border-gray-800 pt-1.5 mt-1.5 text-[9px]">
+                            <div className="font-bold mb-1">Bank Details:</div>
+                            <div className="text-gray-700 space-y-0.5">
+                                {shopSettings.invAccountHolder && <div>A/C Holder: {shopSettings.invAccountHolder}</div>}
+                                {shopSettings.invBankName && <div>Bank: {shopSettings.invBankName}</div>}
+                                {shopSettings.invAccountNumber && <div>A/C No: {shopSettings.invAccountNumber}</div>}
+                                {shopSettings.invIfscCode && <div>IFSC: {shopSettings.invIfscCode}</div>}
+                                {shopSettings.invBranchName && <div>Branch: {shopSettings.invBranchName}</div>}
+                            </div>
+                            {shopSettings.invQrCode && (
+                                <div className="mt-2 text-center">
+                                    <div className="font-bold mb-1 text-[9px]">QR Code</div>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={shopSettings.invQrCode} alt="QR Code" className="mx-auto" style={{ width: '100px', height: '100px', objectFit: 'contain', border: '1px solid #ddd' }} />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Terms */}
                     {(shopSettings?.invoiceTerms || shopSettings?.termsAndConditions) && (
                         <div className="border-t border-dashed border-gray-800 pt-1.5 mt-1.5 text-[9px] text-gray-700">

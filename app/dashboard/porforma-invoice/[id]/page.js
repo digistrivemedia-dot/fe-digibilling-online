@@ -57,6 +57,13 @@ export default function ProformaInvoiceDetail() {
         router.push(`/dashboard/invoices/new?fromProforma=${params.id}`);
     };
 
+    const handlePrint = () => {
+        const originalTitle = document.title;
+        document.title = `Proforma_${proforma?.proformaNumber || 'Document'}`;
+        window.print();
+        setTimeout(() => { document.title = originalTitle; }, 500);
+    };
+
     if (loading || !user) return null;
 
     const shop = shopSettings || {};
@@ -100,7 +107,7 @@ export default function ProformaInvoiceDetail() {
                                     <HiDocumentText className="w-4 h-4" />View Invoice
                                 </button>
                             )}
-                            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-medium">
+                            <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-medium">
                                 <HiPrinter className="w-4 h-4" />Print / PDF
                             </button>
                             <button onClick={() => router.push(`/dashboard/porforma-invoice/${params.id}/edit`)}
@@ -273,9 +280,9 @@ export default function ProformaInvoiceDetail() {
                                     </div>
                                     {(shop.pfQrCode || shop.invQrCode) && (
                                         <div className="mt-4">
-                                            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Payment QR Code</p>
+                                            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">QR Code</p>
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={shop.pfQrCode || shop.invQrCode} alt="Payment QR Code" className="w-32 h-32 border border-gray-200 rounded" />
+                                            <img src={shop.pfQrCode || shop.invQrCode} alt="QR Code" className="w-32 h-32 border border-gray-200 rounded" />
                                         </div>
                                     )}
                                 </div>

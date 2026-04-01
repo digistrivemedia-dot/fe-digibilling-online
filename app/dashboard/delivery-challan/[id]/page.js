@@ -56,6 +56,13 @@ export default function DeliveryChallanDetail() {
         router.push(`/dashboard/invoices/new?fromChallan=${params.id}`);
     };
 
+    const handlePrint = () => {
+        const originalTitle = document.title;
+        document.title = `Challan_${challan?.challanNumber || 'Document'}`;
+        window.print();
+        setTimeout(() => { document.title = originalTitle; }, 500);
+    };
+
     if (loading || !user) return null;
 
     const shop = shopSettings || {};
@@ -99,7 +106,7 @@ export default function DeliveryChallanDetail() {
                                     <HiDocumentText className="w-4 h-4" />View Invoice
                                 </button>
                             )}
-                            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium">
+                            <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium">
                                 <HiPrinter className="w-4 h-4" />Print / PDF
                             </button>
                             <button onClick={() => router.push(`/dashboard/delivery-challan/${params.id}/edit`)}
