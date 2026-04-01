@@ -109,6 +109,12 @@ export default function ThermalReceiptTemplate({ invoice, shopSettings, type = '
                                     <td className="py-0.5">Subtotal:</td>
                                     <td className="text-right py-0.5"><span className="font-sans">₹</span>{displaySubtotal.toFixed(2)}</td>
                                 </tr>
+                                {invoice.discount > 0 && (
+                                    <tr>
+                                        <td className="py-0.5">Discount:</td>
+                                        <td className="text-right py-0.5">-<span className="font-sans">₹</span>{invoice.discount.toFixed(2)}</td>
+                                    </tr>
+                                )}
                                 {!isBOS && (invoice.taxType === 'CGST_SGST' ? (
                                     <>
                                         <tr>
@@ -126,12 +132,6 @@ export default function ThermalReceiptTemplate({ invoice, shopSettings, type = '
                                         <td className="text-right py-0.5"><span className="font-sans">₹</span>{(invoice.totalIGST || 0).toFixed(2)}</td>
                                     </tr>
                                 ))}
-                                {invoice.discount > 0 && (
-                                    <tr>
-                                        <td className="py-0.5">Discount:</td>
-                                        <td className="text-right py-0.5">-<span className="font-sans">₹</span>{invoice.discount.toFixed(2)}</td>
-                                    </tr>
-                                )}
                                 {invoice.roundOff !== 0 && (
                                     <tr>
                                         <td className="py-0.5">Round Off:</td>

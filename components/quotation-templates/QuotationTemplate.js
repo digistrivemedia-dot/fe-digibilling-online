@@ -173,6 +173,13 @@ export default function QuotationTemplate({ quotation, shopSettings }) {
                                 <span className="font-semibold text-gray-900">₹{Number(quotation.subtotal).toFixed(2)}</span>
                             </div>
 
+                            {quotation.discount > 0 && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">Discount</span>
+                                    <span className="text-red-500 font-medium">-₹{Number(quotation.discount).toFixed(2)}</span>
+                                </div>
+                            )}
+
                             {quotation.taxType === 'CGST_SGST' && (
                                 <>
                                     <div className="flex justify-between text-sm text-gray-500">
@@ -192,12 +199,6 @@ export default function QuotationTemplate({ quotation, shopSettings }) {
                                 </div>
                             )}
 
-                            {quotation.discount > 0 && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Discount</span>
-                                    <span className="text-red-500 font-medium">-₹{Number(quotation.discount).toFixed(2)}</span>
-                                </div>
-                            )}
                             {quotation.roundOff !== 0 && (
                                 <div className="flex justify-between text-xs text-gray-400">
                                     <span>Round Off</span>

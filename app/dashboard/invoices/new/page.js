@@ -595,6 +595,9 @@ function NewInvoiceContent() {
       return sum + item.quantity * item.sellingPrice;
     }, 0);
 
+    // Apply discount BEFORE GST calculation
+    const subtotalAfterDiscount = subtotal - discount;
+
     let totalTax = 0;
     let totalCess = 0;
 
@@ -603,23 +606,29 @@ function NewInvoiceContent() {
       totalTax = 0;
       totalCess = 0;
     } else if (taxType === 'CESS') {
-      // When tax type is CESS, apply the manual CESS rate to all items
-      totalCess = (subtotal * cessRate) / 100;
+      // When tax type is CESS, apply the manual CESS rate on subtotal after discount
+      totalCess = (subtotalAfterDiscount * cessRate) / 100;
     } else {
-      // For CGST_SGST and IGST, calculate GST normally
+      // For CGST_SGST and IGST, calculate GST on discounted amount
+      // First calculate total discount ratio
+      const discountRatio = subtotal > 0 ? subtotalAfterDiscount / subtotal : 1;
+
       totalTax = invoiceItems.reduce((sum, item) => {
         const itemTotal = item.quantity * item.sellingPrice;
-        return sum + (itemTotal * item.gstRate) / 100;
+        // Apply discount ratio to each item proportionally
+        const itemAfterDiscount = itemTotal * discountRatio;
+        return sum + (itemAfterDiscount * item.gstRate) / 100;
       }, 0);
 
-      // Also add item-level CESS if any
+      // Also add item-level CESS if any (proportionally after discount)
       totalCess = invoiceItems.reduce((sum, item) => {
         const itemTotal = item.quantity * item.sellingPrice;
-        return sum + (itemTotal * (item.cessRate || 0)) / 100;
+        const itemAfterDiscount = itemTotal * discountRatio;
+        return sum + (itemAfterDiscount * (item.cessRate || 0)) / 100;
       }, 0);
     }
 
-    const grandTotal = subtotal + totalTax + totalCess - discount;
+    const grandTotal = subtotalAfterDiscount + totalTax + totalCess;
     const roundOff = Math.round(grandTotal) - grandTotal;
     const finalTotal = Math.round(grandTotal);
 
@@ -665,6 +674,19 @@ function NewInvoiceContent() {
     if (exceededStockIndex !== -1) {
       const item = invoiceItems[exceededStockIndex];
       toast.error(`Item #${exceededStockIndex + 1}: Quantity (${item.quantity}) exceeds available stock (${item.availableQuantity})`);
+      return;
+    }
+
+    // Validation: Check if discount is greater than subtotal
+    const totals = calculateTotals();
+    if (discount > totals.subtotal) {
+      toast.error(`Discount (₹${discount.toFixed(2)}) cannot be greater than Subtotal (₹${totals.subtotal.toFixed(2)})`);
+      return;
+    }
+
+    // Validation: Check if grand total is negative
+    if (totals.finalTotal < 0) {
+      toast.error('Invoice total cannot be negative. Please reduce the discount amount.');
       return;
     }
 
@@ -1280,6 +1302,27 @@ function NewInvoiceContent() {
                 <span className="text-gray-600">Subtotal:</span>
                 <span className="font-medium">₹{totals.subtotal.toFixed(2)}</span>
               </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Discount:</span>
+                <input
+                  type="number"
+                  min="0"
+                  max={totals.subtotal}
+                  step="0.01"
+                  value={discount}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    if (value > totals.subtotal) {
+                      toast.error(`Discount cannot exceed subtotal of ₹${totals.subtotal.toFixed(2)}`);
+                      setDiscount(totals.subtotal);
+                    } else {
+                      setDiscount(value);
+                    }
+                  }}
+                  className="w-32 px-3 py-1 border border-gray-300 rounded-lg text-right"
+                  placeholder="0.00"
+                />
+              </div>
               {taxType !== 'CESS' && totals.totalTax > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">
@@ -1296,18 +1339,6 @@ function NewInvoiceContent() {
                   <span className="font-medium">₹{totals.totalCess.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-600">Discount:</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={discount}
-                  onChange={(e) => setDiscount(Number(e.target.value))}
-                  className="w-32 px-3 py-1 border border-gray-300 rounded-lg text-right"
-                  placeholder="0.00"
-                />
-              </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Round Off:</span>
                 <span className="font-medium">₹{totals.roundOff.toFixed(2)}</span>

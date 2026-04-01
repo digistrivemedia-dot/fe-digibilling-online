@@ -164,19 +164,24 @@ export default function NewDeliveryChallan() {
 
     const calculateTotals = () => {
         const subtotal = items.reduce((sum, item) => sum + item.quantity * item.sellingPrice, 0);
-        let totalTax = 0;
+
+        // Apply discount BEFORE GST calculation
+        const subtotalAfterDiscount = subtotal - discount;
 
         // Skip all tax calculations for Composition Scheme
-        if (shopSettings?.gstScheme === 'COMPOSITION') {
-            totalTax = 0;
-        } else {
-            totalTax = items.reduce((sum, item) => {
-                const base = item.quantity * item.sellingPrice;
-                return sum + (base * item.gstRate) / 100;
-            }, 0);
-        }
+        const totalTax = shopSettings?.gstScheme === 'COMPOSITION' ? 0
+            : taxType === 'NONE' ? 0
+            : (() => {
+                // Calculate discount ratio for proportional distribution
+                const discountRatio = subtotal > 0 ? subtotalAfterDiscount / subtotal : 1;
+                return items.reduce((sum, item) => {
+                    const itemTotal = item.quantity * item.sellingPrice;
+                    const itemAfterDiscount = itemTotal * discountRatio;
+                    return sum + (itemAfterDiscount * item.gstRate) / 100;
+                }, 0);
+            })();
 
-        const grandTotal = subtotal + totalTax - discount;
+        const grandTotal = subtotalAfterDiscount + totalTax;
         const roundOff = Math.round(grandTotal) - grandTotal;
         const finalTotal = Math.round(grandTotal);
         return { subtotal, totalTax, grandTotal, roundOff, finalTotal };
@@ -188,6 +193,19 @@ export default function NewDeliveryChallan() {
         if (!customerName.trim()) { toast.error('Customer name is required'); return; }
         const emptyItem = items.findIndex(i => i.itemType !== 'service' && !i.product);
         if (emptyItem !== -1) { toast.error(`Select a product for item #${emptyItem + 1}`); return; }
+
+        // Validation: Check if discount is greater than subtotal
+        const totals = calculateTotals();
+        if (discount > totals.subtotal) {
+            toast.error(`Discount (₹${discount.toFixed(2)}) cannot be greater than Subtotal (₹${totals.subtotal.toFixed(2)})`);
+            return;
+        }
+
+        // Validation: Check if grand total is negative
+        if (totals.finalTotal < 0) {
+            toast.error('Total cannot be negative. Please reduce the discount amount.');
+            return;
+        }
 
         setSubmitting(true);
         try {
@@ -554,18 +572,27 @@ export default function NewDeliveryChallan() {
                                 <span className="text-gray-600">Subtotal:</span>
                                 <span className="font-medium">₹{totals.subtotal.toFixed(2)}</span>
                             </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-gray-600">Discount:</span>
+                                <input type="number" min="0" step="0.01" value={discount}
+                                    max={totals.subtotal}
+                                    onChange={(e) => {
+                                        const value = Number(e.target.value);
+                                        if (value > totals.subtotal) {
+                                            toast.error(`Discount cannot exceed subtotal of ₹${totals.subtotal.toFixed(2)}`);
+                                            setDiscount(totals.subtotal);
+                                        } else {
+                                            setDiscount(value);
+                                        }
+                                    }}
+                                    className="w-32 px-3 py-1 border border-gray-300 rounded-lg text-right" placeholder="0.00" />
+                            </div>
                             {totals.totalTax > 0 && (
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-600">{taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}:</span>
                                     <span className="font-medium">₹{totals.totalTax.toFixed(2)}</span>
                                 </div>
                             )}
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-gray-600">Discount:</span>
-                                <input type="number" min="0" step="0.01" value={discount}
-                                    onChange={(e) => setDiscount(Number(e.target.value))}
-                                    className="w-32 px-3 py-1 border border-gray-300 rounded-lg text-right" placeholder="0.00" />
-                            </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-gray-600">Round Off:</span>
                                 <span className="font-medium">₹{totals.roundOff.toFixed(2)}</span>

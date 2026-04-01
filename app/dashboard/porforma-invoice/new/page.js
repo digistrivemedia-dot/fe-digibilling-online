@@ -171,16 +171,24 @@ export default function NewProformaInvoice() {
     // ── Totals ─────────────────────────────────────────────────────────────
     const calculateTotals = () => {
         const subtotal = items.reduce((s, i) => s + i.quantity * i.sellingPrice, 0);
+
+        // Apply discount BEFORE GST calculation
+        const subtotalAfterDiscount = subtotal - discount;
+
         // Skip all tax calculations for Composition Scheme
-        let totalTax;
-        if (shopSettings?.gstScheme === 'COMPOSITION') {
-            totalTax = 0;
-        } else if (taxType === 'NONE') {
-            totalTax = 0;
-        } else {
-            totalTax = items.reduce((s, i) => s + (i.quantity * i.sellingPrice * i.gstRate) / 100, 0);
-        }
-        const grandTotalRaw = subtotal + totalTax - discount;
+        const totalTax = shopSettings?.gstScheme === 'COMPOSITION' ? 0
+            : taxType === 'NONE' ? 0
+            : (() => {
+                // Calculate discount ratio for proportional distribution
+                const discountRatio = subtotal > 0 ? subtotalAfterDiscount / subtotal : 1;
+                return items.reduce((s, i) => {
+                    const itemTotal = i.quantity * i.sellingPrice;
+                    const itemAfterDiscount = itemTotal * discountRatio;
+                    return s + (itemAfterDiscount * i.gstRate) / 100;
+                }, 0);
+            })();
+
+        const grandTotalRaw = subtotalAfterDiscount + totalTax;
         const roundOff = Math.round(grandTotalRaw) - grandTotalRaw;
         return { subtotal, totalTax, grandTotalRaw, roundOff, finalTotal: Math.round(grandTotalRaw) };
     };
@@ -191,6 +199,20 @@ export default function NewProformaInvoice() {
         e.preventDefault();
         if (!customerName.trim()) { toast.error('Customer name is required'); return; }
         if (items.length === 0) { toast.error('Add at least one item'); return; }
+
+        // Validation: Check if discount is greater than subtotal
+        const totals = calculateTotals();
+        if (discount > totals.subtotal) {
+            toast.error(`Discount (₹${discount.toFixed(2)}) cannot be greater than Subtotal (₹${totals.subtotal.toFixed(2)})`);
+            return;
+        }
+
+        // Validation: Check if grand total is negative
+        if (totals.finalTotal < 0) {
+            toast.error('Total cannot be negative. Please reduce the discount amount.');
+            return;
+        }
+
         setSubmitting(true);
         try {
             console.log('Items before mapping:', items);
@@ -623,6 +645,24 @@ export default function NewProformaInvoice() {
                                 <span className="text-gray-500">Subtotal</span>
                                 <span className="font-semibold">₹{totals.subtotal.toFixed(2)}</span>
                             </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-gray-500">Discount</span>
+                                <div className="relative">
+                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                    <input type="number" min="0" step="0.01" value={discount}
+                                        max={totals.subtotal}
+                                        onChange={e => {
+                                            const value = Number(e.target.value);
+                                            if (value > totals.subtotal) {
+                                                toast.error(`Discount cannot exceed subtotal of ₹${totals.subtotal.toFixed(2)}`);
+                                                setDiscount(totals.subtotal);
+                                            } else {
+                                                setDiscount(value);
+                                            }
+                                        }}
+                                        className="w-32 pl-6 pr-3 py-1.5 border border-gray-300 rounded-lg text-right text-sm focus:ring-2 focus:ring-violet-400 focus:border-transparent" />
+                                </div>
+                            </div>
                             {taxType !== 'NONE' && totals.totalTax > 0 && (
                                 <>
                                     {taxType === 'CGST_SGST' && <>
@@ -640,15 +680,6 @@ export default function NewProformaInvoice() {
                                     )}
                                 </>
                             )}
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-gray-500">Discount</span>
-                                <div className="relative">
-                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                                    <input type="number" min="0" step="0.01" value={discount}
-                                        onChange={e => setDiscount(Number(e.target.value))}
-                                        className="w-32 pl-6 pr-3 py-1.5 border border-gray-300 rounded-lg text-right text-sm focus:ring-2 focus:ring-violet-400 focus:border-transparent" />
-                                </div>
-                            </div>
                             <div className="flex justify-between text-sm text-gray-400">
                                 <span>Round Off</span>
                                 <span>{totals.roundOff >= 0 ? '+' : ''}₹{totals.roundOff.toFixed(2)}</span>

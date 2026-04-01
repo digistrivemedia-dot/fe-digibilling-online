@@ -151,6 +151,12 @@ export default function ModernTemplate({ invoice, shopSettings }) {
                             <span className="text-gray-600">Subtotal:</span>
                             <span className="font-medium text-black">₹{invoice.subtotal.toFixed(2)}</span>
                         </div>
+                        {invoice.discount > 0 && (
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Discount:</span>
+                                <span className="font-medium text-black">-₹{invoice.discount.toFixed(2)}</span>
+                            </div>
+                        )}
                         {shopSettings?.gstScheme !== 'COMPOSITION' && (
                             invoice.taxType === 'CGST_SGST' ? (
                                 <>
@@ -169,12 +175,6 @@ export default function ModernTemplate({ invoice, shopSettings }) {
                                     <span className="font-medium text-black">₹{invoice.totalIGST.toFixed(2)}</span>
                                 </div>
                             )
-                        )}
-                        {invoice.discount > 0 && (
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Discount:</span>
-                                <span className="font-medium text-black">-₹{invoice.discount.toFixed(2)}</span>
-                            </div>
                         )}
                         {invoice.roundOff !== 0 && (
                             <div className="flex justify-between">
