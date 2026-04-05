@@ -1,6 +1,7 @@
 'use client';
 
 import { getStateCode } from '@/utils/stateCodes';
+import { buildHsnSummary } from '@/utils/calculations';
 
 const B = '1px solid #000';
 const BD = '1px dashed #bbb';
@@ -42,22 +43,7 @@ export default function TallyPortraitTemplate({ invoice, shopSettings }) {
     const hasTerms = shopSettings?.invoiceTerms || shopSettings?.termsAndConditions;
     const hasBankDetails = shopSettings?.invBankName || shopSettings?.invAccountNumber;
 
-    // Build HSN/SAC-wise tax summary
-    const hsnMap = {};
-    invoice.items.forEach(item => {
-        const key = item.hsnCode || item.sacCode || 'N/A';
-        if (!hsnMap[key]) hsnMap[key] = { taxableValue: 0, cgst: 0, sgst: 0, igst: 0, rate: item.gstRate };
-        const taxable = item.sellingPrice * item.quantity;
-        const taxAmt = item.totalAmount - taxable;
-        hsnMap[key].taxableValue += taxable;
-        if (invoice.taxType === 'CGST_SGST') {
-            hsnMap[key].cgst += taxAmt / 2;
-            hsnMap[key].sgst += taxAmt / 2;
-        } else {
-            hsnMap[key].igst += taxAmt;
-        }
-    });
-    const hsnRows = Object.entries(hsnMap);
+    const hsnRows = buildHsnSummary(invoice.items, invoice.taxType);
     const totalTaxAmt = isBOS ? 0 : invoice.taxType === 'CGST_SGST'
         ? (invoice.totalCGST + invoice.totalSGST)
         : invoice.totalIGST;
@@ -193,13 +179,16 @@ export default function TallyPortraitTemplate({ invoice, shopSettings }) {
                         <th style={{ border: B, borderTop: 'none', padding: '3px 2px', textAlign: 'center', width: '8%', fontSize: '10px' }}>Quantity</th>
                         <th style={{ border: B, borderTop: 'none', padding: '3px 2px', textAlign: 'right', width: '9%', fontSize: '10px' }}>Rate</th>
                         <th style={{ border: B, borderTop: 'none', padding: '3px 2px', textAlign: 'center', width: '5%', fontSize: '10px' }}>per</th>
-                        <th style={{ border: B, borderTop: 'none', padding: '3px 2px', textAlign: 'center', width: '6%', fontSize: '10px' }}>Disc.<br />%</th>
+                        <th style={{ border: B, borderTop: 'none', padding: '3px 2px', textAlign: 'center', width: '6%', fontSize: '10px' }}>Disc.<br />(₹)</th>
                         <th style={{ border: B, borderTop: 'none', padding: '3px 2px', textAlign: 'right', width: '12%', fontSize: '10px' }}>Amount</th>
                     </tr>
                 </thead>
                 <tbody>
                     {invoice.items.map((item, index) => {
-                        const taxable = item.sellingPrice * item.quantity;
+                        const grossAmount = item.sellingPrice * item.quantity;
+                        const discountAmt = item.discountAmount || 0;
+                        // Amount after discount (taxableAmount) — what user pays before GST
+                        const amountAfterDiscount = item.taxableAmount !== undefined ? item.taxableAmount : (grossAmount - discountAmt);
                         return (
                             <tr key={`item-${index}`} style={{ borderBottom: '1px dashed #ccc' }}>
                                 <td style={{ border: B, padding: '3px 2px', textAlign: 'center', fontSize: '10px' }}>{index + 1}</td>
@@ -219,8 +208,10 @@ export default function TallyPortraitTemplate({ invoice, shopSettings }) {
                                 <td style={{ border: B, padding: '3px 2px', textAlign: 'center', fontSize: '10px' }}>{item.quantity} {item.unit}</td>
                                 <td style={{ border: B, padding: '3px 2px', textAlign: 'right', fontSize: '10px' }}>{item.sellingPrice.toFixed(2)}</td>
                                 <td style={{ border: B, padding: '3px 2px', textAlign: 'center', fontSize: '10px' }}>{item.unit}</td>
-                                <td style={{ border: B, padding: '3px 2px', textAlign: 'center', fontSize: '10px' }}></td>
-                                <td style={{ border: B, padding: '3px 2px', textAlign: 'right', fontSize: '10px' }}>{taxable.toFixed(2)}</td>
+                                <td style={{ border: B, padding: '3px 2px', textAlign: 'center', fontSize: '10px' }}>
+                                    {discountAmt > 0 ? discountAmt.toFixed(2) : ''}
+                                </td>
+                                <td style={{ border: B, padding: '3px 2px', textAlign: 'right', fontSize: '10px' }}>{amountAfterDiscount.toFixed(2)}</td>
                             </tr>
                         );
                     })}

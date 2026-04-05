@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { purchasesAPI, suppliersAPI, productsAPI } from '@/utils/api';
+import { calculatePurchaseTotals, calculateItemTotal as calcItemTotal, validateDiscount } from '@/utils/calculations';
 import { HiArrowLeft, HiPlus, HiTrash, HiExclamation } from 'react-icons/hi';
 import Link from 'next/link';
 
@@ -318,24 +319,33 @@ export default function NewPurchasePage() {
   };
 
   const calculateItemTotal = (item) => {
-    const taxableAmount = (item.quantity * item.purchasePrice) - (item.discount || 0);
-    const gstAmount = (taxableAmount * item.gstRate) / 100;
-    return taxableAmount + gstAmount;
+    // Use shared calculation utility for item total
+    return calcItemTotal(item.quantity, item.purchasePrice, item.gstRate, item.cessRate || 0);
   };
 
   const calculateTotals = () => {
-    const itemsTotal = formData.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
-    const additionalCharges = (formData.freightCharges || 0) + (formData.packagingCharges || 0) + (formData.otherCharges || 0);
-    const grandTotal = itemsTotal + additionalCharges - (formData.discount || 0);
+    // Use shared calculation utility (matches backend logic)
+    // FIX: Previous calculation was subtracting GST from total (backwards!)
+    const additionalCharges = {
+      freightCharges: formData.freightCharges || 0,
+      packagingCharges: formData.packagingCharges || 0,
+      otherCharges: formData.otherCharges || 0
+    };
 
-    const totalGST = formData.items.reduce((sum, item) => {
-      const taxableAmount = (item.quantity * item.purchasePrice) - (item.discount || 0);
-      return sum + ((taxableAmount * item.gstRate) / 100);
-    }, 0);
+    const result = calculatePurchaseTotals(
+      formData.items,
+      formData.discount || 0,
+      formData.taxType || 'CGST_SGST',
+      0, // cessRate
+      additionalCharges,
+      null // shopSettings
+    );
 
-    const subtotal = itemsTotal - totalGST;
-
-    return { subtotal, totalGST, grandTotal };
+    return {
+      subtotal: result.subtotal,
+      totalGST: result.totalTax,
+      grandTotal: result.finalTotal
+    };
   };
 
   const validateForm = () => {

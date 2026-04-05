@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, proformaInvoicesAPI, shopAPI, servicesAPI } from '@/utils/api';
+import { calculateInvoiceTotals } from '@/utils/calculations';
 import {
     HiPlus, HiSearch, HiX, HiExclamation,
     HiCube, HiLightningBolt, HiChevronDown, HiChevronUp,
@@ -170,27 +171,15 @@ export default function NewProformaInvoice() {
 
     // ── Totals ─────────────────────────────────────────────────────────────
     const calculateTotals = () => {
-        const subtotal = items.reduce((s, i) => s + i.quantity * i.sellingPrice, 0);
-
-        // Apply discount BEFORE GST calculation
-        const subtotalAfterDiscount = subtotal - discount;
-
-        // Skip all tax calculations for Composition Scheme
-        const totalTax = shopSettings?.gstScheme === 'COMPOSITION' ? 0
-            : taxType === 'NONE' ? 0
-            : (() => {
-                // Calculate discount ratio for proportional distribution
-                const discountRatio = subtotal > 0 ? subtotalAfterDiscount / subtotal : 1;
-                return items.reduce((s, i) => {
-                    const itemTotal = i.quantity * i.sellingPrice;
-                    const itemAfterDiscount = itemTotal * discountRatio;
-                    return s + (itemAfterDiscount * i.gstRate) / 100;
-                }, 0);
-            })();
-
-        const grandTotalRaw = subtotalAfterDiscount + totalTax;
-        const roundOff = Math.round(grandTotalRaw) - grandTotalRaw;
-        return { subtotal, totalTax, grandTotalRaw, roundOff, finalTotal: Math.round(grandTotalRaw) };
+        // Use shared calculation utility (matches backend logic)
+        const result = calculateInvoiceTotals(items, discount, taxType, 0, shopSettings);
+        return {
+            subtotal: result.subtotal,
+            totalTax: result.totalTax,
+            grandTotalRaw: result.grandTotal,
+            roundOff: result.roundOff,
+            finalTotal: result.finalTotal
+        };
     };
     const totals = calculateTotals();
 

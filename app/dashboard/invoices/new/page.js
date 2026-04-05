@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, invoicesAPI, shopAPI, servicesAPI, quotationsAPI, proformaInvoicesAPI, deliveryChallansAPI } from '@/utils/api';
+import { calculateInvoiceTotals, calculateItemWithDiscount, calculateItemDisplayTotal, validateDiscount, validateInvoiceTotals } from '@/utils/calculations';
 import { HiPlus, HiSearch, HiX, HiExclamation, HiLightningBolt, HiCube } from 'react-icons/hi';
 
 function NewInvoiceContent() {
@@ -509,7 +510,7 @@ function NewInvoiceContent() {
   const addItem = () => {
     setInvoiceItems([
       ...invoiceItems,
-      { itemType: 'product', product: '', batch: '', selectedBatch: '', quantity: 1, sellingPrice: 0, gstRate: 12, cessRate: 0 },
+      { itemType: 'product', product: '', batch: '', selectedBatch: '', quantity: 1, sellingPrice: 0, discountAmount: 0, gstRate: 12, cessRate: 0 },
     ]);
   };
 
@@ -517,7 +518,7 @@ function NewInvoiceContent() {
   const addProductItem = () => {
     setInvoiceItems([
       ...invoiceItems,
-      { itemType: 'product', product: '', batch: '', selectedBatch: '', quantity: 1, sellingPrice: 0, gstRate: 12, cessRate: 0 },
+      { itemType: 'product', product: '', batch: '', selectedBatch: '', quantity: 1, sellingPrice: 0, discountAmount: 0, gstRate: 12, cessRate: 0 },
     ]);
   };
 
@@ -525,7 +526,7 @@ function NewInvoiceContent() {
   const addServiceItem = () => {
     setInvoiceItems([
       ...invoiceItems,
-      { itemType: 'service', serviceId: '', serviceName: '', sacCode: '', quantity: 1, sellingPrice: 0, gstRate: 18, cessRate: 0, unit: 'NOS' },
+      { itemType: 'service', serviceId: '', serviceName: '', sacCode: '', quantity: 1, sellingPrice: 0, discountAmount: 0, gstRate: 18, cessRate: 0, unit: 'NOS' },
     ]);
   };
 
@@ -591,48 +592,8 @@ function NewInvoiceContent() {
   );
 
   const calculateTotals = () => {
-    const subtotal = invoiceItems.reduce((sum, item) => {
-      return sum + item.quantity * item.sellingPrice;
-    }, 0);
-
-    // Apply discount BEFORE GST calculation
-    const subtotalAfterDiscount = subtotal - discount;
-
-    let totalTax = 0;
-    let totalCess = 0;
-
-    // Skip all tax calculations for Composition Scheme
-    if (shopSettings?.gstScheme === 'COMPOSITION') {
-      totalTax = 0;
-      totalCess = 0;
-    } else if (taxType === 'CESS') {
-      // When tax type is CESS, apply the manual CESS rate on subtotal after discount
-      totalCess = (subtotalAfterDiscount * cessRate) / 100;
-    } else {
-      // For CGST_SGST and IGST, calculate GST on discounted amount
-      // First calculate total discount ratio
-      const discountRatio = subtotal > 0 ? subtotalAfterDiscount / subtotal : 1;
-
-      totalTax = invoiceItems.reduce((sum, item) => {
-        const itemTotal = item.quantity * item.sellingPrice;
-        // Apply discount ratio to each item proportionally
-        const itemAfterDiscount = itemTotal * discountRatio;
-        return sum + (itemAfterDiscount * item.gstRate) / 100;
-      }, 0);
-
-      // Also add item-level CESS if any (proportionally after discount)
-      totalCess = invoiceItems.reduce((sum, item) => {
-        const itemTotal = item.quantity * item.sellingPrice;
-        const itemAfterDiscount = itemTotal * discountRatio;
-        return sum + (itemAfterDiscount * (item.cessRate || 0)) / 100;
-      }, 0);
-    }
-
-    const grandTotal = subtotalAfterDiscount + totalTax + totalCess;
-    const roundOff = Math.round(grandTotal) - grandTotal;
-    const finalTotal = Math.round(grandTotal);
-
-    return { subtotal, totalTax, totalCess, grandTotal, roundOff, finalTotal };
+    // Use shared calculation utility (matches backend logic)
+    return calculateInvoiceTotals(invoiceItems, discount, taxType, cessRate, shopSettings);
   };
 
   const handleSubmit = async (e) => {
@@ -677,17 +638,22 @@ function NewInvoiceContent() {
       return;
     }
 
-    // Validation: Check if discount is greater than subtotal
+    // Validation: Check if discount is valid
     const totals = calculateTotals();
-    if (discount > totals.subtotal) {
-      toast.error(`Discount (₹${discount.toFixed(2)}) cannot be greater than Subtotal (₹${totals.subtotal.toFixed(2)})`);
+    const discountValidation = validateDiscount(discount, totals.subtotal);
+    if (!discountValidation.isValid) {
+      toast.error(discountValidation.error);
       return;
     }
 
-    // Validation: Check if grand total is negative
-    if (totals.finalTotal < 0) {
-      toast.error('Invoice total cannot be negative. Please reduce the discount amount.');
+    // Validation: Check if invoice totals are valid
+    const totalsValidation = validateInvoiceTotals(totals);
+    if (!totalsValidation.isValid) {
+      toast.error(totalsValidation.error);
       return;
+    }
+    if (totalsValidation.warning) {
+      toast.warning(totalsValidation.warning);
     }
 
     setSubmitting(true);
@@ -1037,6 +1003,7 @@ function NewInvoiceContent() {
                   <div className="flex-1">Item</div>
                   <div className="w-20">Qty</div>
                   <div className="w-28">Price</div>
+                  <div className="w-28">Discount (₹)</div>
                   {shopSettings?.gstScheme === 'REGULAR' && <div className="w-24">GST %</div>}
                   {shopSettings?.gstScheme === 'REGULAR' && <div className="w-24">CESS %</div>}
                   <div className="w-32">Total</div>
@@ -1216,6 +1183,30 @@ function NewInvoiceContent() {
                         />
                       </div>
 
+                      {/* Discount (₹) */}
+                      <div className="w-28">
+                        <input
+                          type="number"
+                          min="0"
+                          max={item.quantity * item.sellingPrice}
+                          step="0.01"
+                          placeholder="0.00"
+                          value={item.discountAmount || 0}
+                          onChange={(e) => {
+                            const value = Number(e.target.value);
+                            const maxDiscount = item.quantity * item.sellingPrice;
+                            if (value > maxDiscount) {
+                              toast.warning(`Discount cannot exceed item total of ₹${maxDiscount.toFixed(2)}`);
+                              updateItem(index, 'discountAmount', maxDiscount);
+                            } else {
+                              updateItem(index, 'discountAmount', value);
+                            }
+                          }}
+                          className="w-full px-3 py-2 border border-emerald-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+                          title="Item Discount (₹)"
+                        />
+                      </div>
+
                       {/* GST % — hidden for Composition Scheme */}
                       {shopSettings?.gstScheme === 'REGULAR' ? (
                         <div className="w-24">
@@ -1252,11 +1243,11 @@ function NewInvoiceContent() {
                         </div>
                       ) : null}
 
-                      <div className="w-32 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm">
-                        ₹{shopSettings?.gstScheme === 'COMPOSITION'
-                          ? (item.quantity * item.sellingPrice).toFixed(2)
-                          : (item.quantity * item.sellingPrice * (1 + (item.gstRate + (item.cessRate || 0)) / 100)).toFixed(2)
-                        }
+                      <div className="w-32 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium">
+                        ₹{(() => {
+                          const itemCalc = calculateItemWithDiscount(item, shopSettings);
+                          return itemCalc.itemTotal.toFixed(2);
+                        })()}
                       </div>
 
                       <button
@@ -1304,24 +1295,33 @@ function NewInvoiceContent() {
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-600">Discount:</span>
-                <input
-                  type="number"
-                  min="0"
-                  max={totals.subtotal}
-                  step="0.01"
-                  value={discount}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    if (value > totals.subtotal) {
-                      toast.error(`Discount cannot exceed subtotal of ₹${totals.subtotal.toFixed(2)}`);
-                      setDiscount(totals.subtotal);
-                    } else {
-                      setDiscount(value);
-                    }
-                  }}
-                  className="w-32 px-3 py-1 border border-gray-300 rounded-lg text-right"
-                  placeholder="0.00"
-                />
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max={totals.subtotal}
+                    step="0.01"
+                    value={totals.hasItemDiscounts ? totals.totalDiscount : discount}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      if (value > totals.subtotal) {
+                        toast.error(`Discount cannot exceed subtotal of ₹${totals.subtotal.toFixed(2)}`);
+                        setDiscount(totals.subtotal);
+                      } else {
+                        setDiscount(value);
+                      }
+                    }}
+                    disabled={totals.hasItemDiscounts}
+                    className={`w-32 px-3 py-1 border rounded-lg text-right ${totals.hasItemDiscounts ? 'bg-gray-100 cursor-not-allowed border-gray-200' : 'border-gray-300'}`}
+                    placeholder="0.00"
+                    title={totals.hasItemDiscounts ? 'Remove discount from products/services to add invoice-level discount' : 'Invoice-level discount'}
+                  />
+                  {totals.hasItemDiscounts && (
+                    <div className="absolute -top-6 right-0 text-xs text-emerald-600 font-medium">
+                      Item discounts applied
+                    </div>
+                  )}
+                </div>
               </div>
               {taxType !== 'CESS' && totals.totalTax > 0 && (
                 <div className="flex justify-between text-sm">

@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import PageLoader from '@/components/PageLoader';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, proformaInvoicesAPI } from '@/utils/api';
+import { calculateInvoiceTotals } from '@/utils/calculations';
 import { HiPlus, HiSearch, HiX, HiExclamation } from 'react-icons/hi';
 
 export default function EditProformaInvoice() {
@@ -149,11 +150,15 @@ export default function EditProformaInvoice() {
     };
 
     const calculateTotals = () => {
-        const subtotal = items.reduce((s, i) => s + i.quantity * i.sellingPrice, 0);
-        const totalTax = items.reduce((s, i) => s + (i.quantity * i.sellingPrice * i.gstRate) / 100, 0);
-        const grandTotal = subtotal + totalTax - discount;
-        const roundOff = Math.round(grandTotal) - grandTotal;
-        return { subtotal, totalTax, grandTotal, roundOff, finalTotal: Math.round(grandTotal) };
+        // Use shared calculation utility (matches backend logic) - FIX: Was applying discount AFTER GST!
+        const result = calculateInvoiceTotals(items, discount, taxType, 0, shopSettings);
+        return {
+            subtotal: result.subtotal,
+            totalTax: result.totalTax,
+            grandTotal: result.grandTotal,
+            roundOff: result.roundOff,
+            finalTotal: result.finalTotal
+        };
     };
 
     const handleSubmit = async (e) => {

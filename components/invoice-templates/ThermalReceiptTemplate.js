@@ -86,14 +86,9 @@ export default function ThermalReceiptTemplate({ invoice, shopSettings, type = '
                                                 {item.expiryDate && `Exp: ${new Date(item.expiryDate).toLocaleDateString('en-GB', { month: '2-digit', year: 'numeric' })}`}
                                             </div>
                                         )}
-                                        <div className="flex justify-between items-end mt-0.5">
-                                            <div className="w-[55%] text-[10px] text-gray-700 leading-tight">
-                                                {item.quantity} {item.unit} &times; <span className="font-sans">₹</span>{item.sellingPrice.toFixed(2)}
-                                                {!isBOS && item.gstRate ? ` @ ${item.gstRate}%` : ''}
-                                            </div>
-                                            <div className="w-[45%] text-right text-[11px] font-bold">
-                                                <span className="font-sans">₹</span>{itemTotal.toFixed(2)}
-                                            </div>
+                                        <div className="mt-0.5 text-[10px] text-gray-700">
+                                            {item.quantity} {item.unit} &times; <span className="font-sans">₹</span>{item.sellingPrice.toFixed(2)}
+                                            {!isBOS && item.gstRate ? ` @ ${item.gstRate}%` : ''}
                                         </div>
                                     </div>
                                 );
@@ -105,11 +100,18 @@ export default function ThermalReceiptTemplate({ invoice, shopSettings, type = '
                     <div className="border-t-2 border-gray-800 pt-1.5 mt-2">
                         <table className="w-full text-[11px]">
                             <tbody>
+                                {/* Total item-level discounts */}
+                                {invoice.items.reduce((s, it) => s + (it.discountAmount || 0), 0) > 0 && (
+                                    <tr>
+                                        <td className="py-0.5">Disc:</td>
+                                        <td className="text-right py-0.5">-<span className="font-sans">₹</span>{invoice.items.reduce((s, it) => s + (it.discountAmount || 0), 0).toFixed(2)}</td>
+                                    </tr>
+                                )}
                                 <tr>
                                     <td className="py-0.5">Subtotal:</td>
                                     <td className="text-right py-0.5"><span className="font-sans">₹</span>{displaySubtotal.toFixed(2)}</td>
                                 </tr>
-                                {invoice.discount > 0 && (
+                                {(invoice.discount || 0) > 0 && (
                                     <tr>
                                         <td className="py-0.5">Discount:</td>
                                         <td className="text-right py-0.5">-<span className="font-sans">₹</span>{invoice.discount.toFixed(2)}</td>

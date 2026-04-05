@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import PageLoader from '@/components/PageLoader';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, quotationsAPI, shopAPI } from '@/utils/api';
+import { calculateInvoiceTotals, validateDiscount, validateInvoiceTotals } from '@/utils/calculations';
 import {
   HiPlus, HiSearch, HiX, HiExclamation,
   HiCube, HiLightningBolt,
@@ -213,12 +214,15 @@ export default function EditQuotation() {
 
   // ── Totals ─────────────────────────────────────────────────────────────────
   const calculateTotals = () => {
-    const subtotal = items.reduce((s, i) => s + i.quantity * i.sellingPrice, 0);
-    const totalTax = taxType === 'NONE' ? 0
-      : items.reduce((s, i) => s + (i.quantity * i.sellingPrice * i.gstRate) / 100, 0);
-    const grandTotalRaw = subtotal + totalTax - discount;
-    const roundOff = Math.round(grandTotalRaw) - grandTotalRaw;
-    return { subtotal, totalTax, grandTotalRaw, roundOff, finalTotal: Math.round(grandTotalRaw) };
+    // Use shared calculation utility (matches backend logic) - FIX: Was applying discount AFTER GST!
+    const result = calculateInvoiceTotals(items, discount, taxType, 0, shopSettings);
+    return {
+      subtotal: result.subtotal,
+      totalTax: result.totalTax,
+      grandTotalRaw: result.grandTotal,
+      roundOff: result.roundOff,
+      finalTotal: result.finalTotal
+    };
   };
   const totals = calculateTotals();
 

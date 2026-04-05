@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, deliveryChallansAPI, shopAPI, servicesAPI } from '@/utils/api';
+import { calculateInvoiceTotals } from '@/utils/calculations';
 import { HiPlus, HiSearch, HiX, HiExclamation, HiCube, HiLightningBolt } from 'react-icons/hi';
 
 export default function NewDeliveryChallan() {
@@ -163,28 +164,15 @@ export default function NewDeliveryChallan() {
     };
 
     const calculateTotals = () => {
-        const subtotal = items.reduce((sum, item) => sum + item.quantity * item.sellingPrice, 0);
-
-        // Apply discount BEFORE GST calculation
-        const subtotalAfterDiscount = subtotal - discount;
-
-        // Skip all tax calculations for Composition Scheme
-        const totalTax = shopSettings?.gstScheme === 'COMPOSITION' ? 0
-            : taxType === 'NONE' ? 0
-            : (() => {
-                // Calculate discount ratio for proportional distribution
-                const discountRatio = subtotal > 0 ? subtotalAfterDiscount / subtotal : 1;
-                return items.reduce((sum, item) => {
-                    const itemTotal = item.quantity * item.sellingPrice;
-                    const itemAfterDiscount = itemTotal * discountRatio;
-                    return sum + (itemAfterDiscount * item.gstRate) / 100;
-                }, 0);
-            })();
-
-        const grandTotal = subtotalAfterDiscount + totalTax;
-        const roundOff = Math.round(grandTotal) - grandTotal;
-        const finalTotal = Math.round(grandTotal);
-        return { subtotal, totalTax, grandTotal, roundOff, finalTotal };
+        // Use shared calculation utility (matches backend logic)
+        const result = calculateInvoiceTotals(items, discount, taxType, 0, shopSettings);
+        return {
+            subtotal: result.subtotal,
+            totalTax: result.totalTax,
+            grandTotal: result.grandTotal,
+            roundOff: result.roundOff,
+            finalTotal: result.finalTotal
+        };
     };
 
     const handleSubmit = async (e) => {

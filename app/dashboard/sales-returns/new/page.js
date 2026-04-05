@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { salesReturnsAPI, invoicesAPI } from '@/utils/api';
+import { calculateInvoiceTotals } from '@/utils/calculations';
 import { HiArrowLeft, HiPlus, HiTrash } from 'react-icons/hi';
 import Link from 'next/link';
 
@@ -125,18 +126,22 @@ export default function NewSalesReturnPage() {
   };
 
   const calculateTotals = () => {
-    const subtotal = formData.items.reduce((sum, item) => {
-      return sum + ((item.quantity * item.price) - (item.discount || 0));
-    }, 0);
+    // Use shared calculation utility (matches backend logic)
+    // Map items to expected format (using 'price' as 'sellingPrice')
+    const items = formData.items.map(item => ({
+      quantity: item.quantity,
+      sellingPrice: item.price,
+      gstRate: item.gstRate,
+      cessRate: item.cessRate || 0
+    }));
 
-    const totalGST = formData.items.reduce((sum, item) => {
-      const taxableAmount = (item.quantity * item.price) - (item.discount || 0);
-      return sum + ((taxableAmount * item.gstRate) / 100);
-    }, 0);
+    const result = calculateInvoiceTotals(items, 0, formData.taxType || 'CGST_SGST', 0, null);
 
-    const totalAmount = subtotal + totalGST;
-
-    return { subtotal, totalGST, totalAmount };
+    return {
+      subtotal: result.subtotal,
+      totalGST: result.totalTax,
+      totalAmount: result.finalTotal
+    };
   };
 
   const handleSubmit = async (e) => {

@@ -112,6 +112,7 @@ export default function ModernTemplate({ invoice, shopSettings }) {
                             <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">HSN</th>
                             <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Qty</th>
                             <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Price</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Discount</th>
                             {shopSettings?.gstScheme !== 'COMPOSITION' && <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">GST %</th>}
                             <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Total</th>
                         </tr>
@@ -135,6 +136,9 @@ export default function ModernTemplate({ invoice, shopSettings }) {
                                 <td className="px-4 py-3 text-sm text-gray-900 text-center">{item.hsnCode || item.sacCode || '-'}</td>
                                 <td className="px-4 py-3 text-sm text-gray-900 text-center">{item.quantity} {item.unit}</td>
                                 <td className="px-4 py-3 text-sm text-gray-900 text-right">₹{item.sellingPrice.toFixed(2)}</td>
+                                <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                    {(item.discountAmount || 0) > 0 ? <span className="text-red-600">-₹{item.discountAmount.toFixed(2)}</span> : <span className="text-gray-400">-</span>}
+                                </td>
                                 {shopSettings?.gstScheme !== 'COMPOSITION' && <td className="px-4 py-3 text-sm text-gray-900 text-center">{item.gstRate}%</td>}
                                 <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">₹{item.totalAmount.toFixed(2)}</td>
                             </tr>
@@ -151,10 +155,18 @@ export default function ModernTemplate({ invoice, shopSettings }) {
                             <span className="text-gray-600">Subtotal:</span>
                             <span className="font-medium text-black">₹{invoice.subtotal.toFixed(2)}</span>
                         </div>
-                        {invoice.discount > 0 && (
+                        {/* Show invoice-level discount */}
+                        {(invoice.discount || 0) > 0 && (
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Discount:</span>
-                                <span className="font-medium text-black">-₹{invoice.discount.toFixed(2)}</span>
+                                <span className="font-medium text-red-600">-₹{invoice.discount.toFixed(2)}</span>
+                            </div>
+                        )}
+                        {/* Show item-level discount total */}
+                        {invoice.items.reduce((s, it) => s + (it.discountAmount || 0), 0) > 0 && (
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Item Discount:</span>
+                                <span className="font-medium text-red-600">-₹{invoice.items.reduce((s, it) => s + (it.discountAmount || 0), 0).toFixed(2)}</span>
                             </div>
                         )}
                         {shopSettings?.gstScheme !== 'COMPOSITION' && (
