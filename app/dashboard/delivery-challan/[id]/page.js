@@ -162,85 +162,124 @@ export default function DeliveryChallanDetail() {
                                 </div>
                             </div>
 
-                            {/* Items Table */}
-                            <table className="w-full mb-8">
-                                <thead>
-                                    <tr className="border-b-2 border-gray-200">
-                                        <th className="text-left py-3 text-sm font-semibold text-gray-600">#</th>
-                                        <th className="text-left py-3 text-sm font-semibold text-gray-600">Item / Description</th>
-                                        <th className="text-right py-3 text-sm font-semibold text-gray-600">Qty</th>
-                                        <th className="text-right py-3 text-sm font-semibold text-gray-600">Unit</th>
-                                        <th className="text-right py-3 text-sm font-semibold text-gray-600">Rate</th>
-                                        {shop.gstScheme !== 'COMPOSITION' && <th className="text-right py-3 text-sm font-semibold text-gray-600">GST</th>}
-                                        <th className="text-right py-3 text-sm font-semibold text-gray-600">Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {(c.items || []).map((item, idx) => {
-                                        const base = (item.quantity || 0) * (item.sellingPrice || 0);
-                                        const tax = shop.gstScheme === 'COMPOSITION' ? 0 : base * ((item.gstRate || 0) / 100);
-                                        const total = base + tax;
-                                        return (
-                                            <tr key={idx}>
-                                                <td className="py-3 text-sm text-gray-500">{idx + 1}</td>
-                                                <td className="py-3 text-sm text-gray-900">
-                                                    <div className="font-medium">{item.productName || item.serviceName || 'Item'}</div>
-                                                    {item.description && <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>}
-                                                </td>
-                                                <td className="py-3 text-sm text-gray-700 text-right">{item.quantity || 0}</td>
-                                                <td className="py-3 text-sm text-gray-600 text-right">{item.unit || 'PCS'}</td>
-                                                <td className="py-3 text-sm text-gray-700 text-right">₹{Number(item.sellingPrice || 0).toFixed(2)}</td>
-                                                {shop.gstScheme !== 'COMPOSITION' && <td className="py-3 text-sm text-gray-600 text-right">{item.gstRate || 0}%</td>}
-                                                <td className="py-3 text-sm font-medium text-gray-900 text-right">₹{total.toFixed(2)}</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                            {/* Items Table + Totals */}
+                            {(() => {
+                                const getItemDiscount = (item) => {
+                                    if ((item.discountAmount || 0) > 0) return item.discountAmount;
+                                    const gross = (item.sellingPrice || 0) * (item.quantity || 0);
+                                    const taxable = item.taxableAmount !== undefined ? item.taxableAmount : gross;
+                                    return Math.max(0, gross - taxable);
+                                };
+                                const hasItemDiscounts = (c.items || []).some(i => getItemDiscount(i) > 0);
+                                const preDiscountTotal = (c.items || []).reduce((s, i) => s + (i.sellingPrice || 0) * (i.quantity || 0), 0);
+                                const totalDiscount = c.discount || 0;
+                                const taxableSubtotal = preDiscountTotal - totalDiscount;
+                                const totalTax = (c.totalCGST || 0) + (c.totalSGST || 0) + (c.totalIGST || 0);
+                                const roundOff = c.roundOff || 0;
+                                const correctGrandTotal = taxableSubtotal + totalTax + roundOff;
+                                return (
+                                <>
+                                <table className="w-full mb-8">
+                                    <thead>
+                                        <tr className="border-b-2 border-gray-200">
+                                            <th className="text-left py-3 text-sm font-semibold text-gray-600">#</th>
+                                            <th className="text-left py-3 text-sm font-semibold text-gray-600">Item / Description</th>
+                                            <th className="text-right py-3 text-sm font-semibold text-gray-600">Qty</th>
+                                            <th className="text-right py-3 text-sm font-semibold text-gray-600">Unit</th>
+                                            <th className="text-right py-3 text-sm font-semibold text-gray-600">Rate</th>
+                                            {hasItemDiscounts && <th className="text-right py-3 text-sm font-semibold text-gray-600">Discount</th>}
+                                            {shop.gstScheme !== 'COMPOSITION' && <th className="text-right py-3 text-sm font-semibold text-gray-600">GST</th>}
+                                            <th className="text-right py-3 text-sm font-semibold text-gray-600">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {(c.items || []).map((item, idx) => {
+                                            const disc = getItemDiscount(item);
+                                            const taxable = (item.sellingPrice || 0) * (item.quantity || 0) - disc;
+                                            const tax = shop.gstScheme === 'COMPOSITION' ? 0 : taxable * ((item.gstRate || 0) / 100);
+                                            const total = taxable + tax;
+                                            return (
+                                                <tr key={idx}>
+                                                    <td className="py-3 text-sm text-gray-500">{idx + 1}</td>
+                                                    <td className="py-3 text-sm text-gray-900">
+                                                        <div className="font-medium">{item.productName || item.serviceName || 'Item'}</div>
+                                                        {item.description && <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>}
+                                                    </td>
+                                                    <td className="py-3 text-sm text-gray-700 text-right">{item.quantity || 0}</td>
+                                                    <td className="py-3 text-sm text-gray-600 text-right">{item.unit || 'PCS'}</td>
+                                                    <td className="py-3 text-sm text-gray-700 text-right">₹{Number(item.sellingPrice || 0).toFixed(2)}</td>
+                                                    {hasItemDiscounts && (
+                                                        <td className="py-3 text-sm text-right">
+                                                            {disc > 0
+                                                                ? <span className="text-emerald-600 font-medium">-₹{disc.toFixed(2)}</span>
+                                                                : <span className="text-gray-300">—</span>
+                                                            }
+                                                        </td>
+                                                    )}
+                                                    {shop.gstScheme !== 'COMPOSITION' && <td className="py-3 text-sm text-gray-600 text-right">{item.gstRate || 0}%</td>}
+                                                    <td className="py-3 text-sm font-medium text-gray-900 text-right">₹{total.toFixed(2)}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
 
-                            {/* Totals Section */}
-                            <div className="border-t-2 border-gray-200 pt-4">
-                                <div className="flex justify-end">
-                                    <div className="w-80 space-y-2">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-gray-600">Subtotal:</span>
-                                            <span className="font-medium text-gray-900">₹{(c.subtotal || 0).toFixed(2)}</span>
-                                        </div>
-                                        {shop.gstScheme !== 'COMPOSITION' && c.taxType !== 'NONE' && c.totalTax > 0 && (
-                                            <>
-                                                {c.taxType === 'CGST_SGST' && (
-                                                    <>
-                                                        <div className="flex justify-between text-sm text-gray-500">
-                                                            <span>CGST:</span>
-                                                            <span>₹{((c.totalTax || 0) / 2).toFixed(2)}</span>
-                                                        </div>
-                                                        <div className="flex justify-between text-sm text-gray-500">
-                                                            <span>SGST:</span>
-                                                            <span>₹{((c.totalTax || 0) / 2).toFixed(2)}</span>
-                                                        </div>
-                                                    </>
-                                                )}
-                                                {c.taxType === 'IGST' && (
-                                                    <div className="flex justify-between text-sm text-gray-500">
-                                                        <span>IGST:</span>
-                                                        <span>₹{(c.totalTax || 0).toFixed(2)}</span>
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                        {c.discount > 0 && (
-                                            <div className="flex justify-between text-sm text-gray-500">
-                                                <span>Discount:</span>
-                                                <span>- ₹{(c.discount || 0).toFixed(2)}</span>
+                                {/* Totals Section */}
+                                <div className="border-t-2 border-gray-200 pt-4">
+                                    <div className="flex justify-end">
+                                        <div className="w-80 space-y-2">
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-gray-600">Price:</span>
+                                                <span className="font-medium text-gray-900">₹{preDiscountTotal.toFixed(2)}</span>
                                             </div>
-                                        )}
-                                        <div className="border-t border-gray-200 pt-2 flex justify-between text-base font-bold">
-                                            <span className="text-gray-700">Grand Total:</span>
-                                            <span className="text-teal-600">₹{(c.grandTotal || 0).toLocaleString('en-IN')}</span>
+                                            {totalDiscount > 0 && (
+                                                <div className="flex justify-between text-sm text-gray-500">
+                                                    <span>Discount:</span>
+                                                    <span className="text-red-500">-₹{totalDiscount.toFixed(2)}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-gray-600">Subtotal:</span>
+                                                <span className="font-medium text-gray-900">₹{taxableSubtotal.toFixed(2)}</span>
+                                            </div>
+                                            {shop.gstScheme !== 'COMPOSITION' && c.taxType !== 'NONE' && totalTax > 0 && (
+                                                <>
+                                                    {c.taxType === 'CGST_SGST' && (
+                                                        <>
+                                                            <div className="flex justify-between text-sm text-gray-500">
+                                                                <span>CGST:</span>
+                                                                <span>₹{Number(c.totalCGST || 0).toFixed(2)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-sm text-gray-500">
+                                                                <span>SGST:</span>
+                                                                <span>₹{Number(c.totalSGST || 0).toFixed(2)}</span>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    {c.taxType === 'IGST' && (
+                                                        <div className="flex justify-between text-sm text-gray-500">
+                                                            <span>IGST:</span>
+                                                            <span>₹{Number(c.totalIGST || 0).toFixed(2)}</span>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                            {roundOff !== 0 && (
+                                                <div className="flex justify-between text-xs text-gray-400">
+                                                    <span>Round Off:</span>
+                                                    <span>₹{roundOff.toFixed(2)}</span>
+                                                </div>
+                                            )}
+                                            <div className="border-t border-gray-200 pt-2 flex justify-between text-base font-bold">
+                                                <span className="text-gray-700">Grand Total:</span>
+                                                <span className="text-teal-600">₹{correctGrandTotal.toLocaleString('en-IN')}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                                </>
+                                );
+                            })()}
 
                             {/* Notes */}
                             {c.notes && (

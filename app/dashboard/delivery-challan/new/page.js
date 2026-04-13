@@ -7,7 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, deliveryChallansAPI, shopAPI, servicesAPI } from '@/utils/api';
-import { calculateInvoiceTotals } from '@/utils/calculations';
+import { calculateInvoiceTotals, calculateItemWithDiscount } from '@/utils/calculations';
 import { HiPlus, HiSearch, HiX, HiExclamation, HiCube, HiLightningBolt } from 'react-icons/hi';
 
 export default function NewDeliveryChallan() {
@@ -22,7 +22,6 @@ export default function NewDeliveryChallan() {
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [items, setItems] = useState([]);
     const [taxType, setTaxType] = useState('CGST_SGST');
-    const [discount, setDiscount] = useState(0);
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
     const [challanDate, setChallanDate] = useState(new Date().toISOString().split('T')[0]);
@@ -131,12 +130,12 @@ export default function NewDeliveryChallan() {
 
     const addItem = () => setItems([...items, {
         itemType: 'product', product: '', batch: '', selectedBatch: '',
-        quantity: 1, unit: 'PCS', sellingPrice: 0, gstRate: 0, description: '',
+        quantity: 1, unit: 'PCS', sellingPrice: 0, discountAmount: 0, gstRate: 0, description: '',
     }]);
 
     const addServiceItem = () => setItems([...items, {
         itemType: 'service', serviceName: '', sacCode: '', quantity: 1,
-        unit: 'NOS', sellingPrice: 0, gstRate: 0, description: '',
+        unit: 'NOS', sellingPrice: 0, discountAmount: 0, gstRate: 0, description: '',
     }]);
 
     const removeItem = (i) => setItems(items.filter((_, idx) => idx !== i));
@@ -164,10 +163,10 @@ export default function NewDeliveryChallan() {
     };
 
     const calculateTotals = () => {
-        // Use shared calculation utility (matches backend logic)
-        const result = calculateInvoiceTotals(items, discount, taxType, 0, shopSettings);
+        const result = calculateInvoiceTotals(items, 0, taxType, 0, shopSettings);
         return {
             subtotal: result.subtotal,
+            totalDiscount: result.totalDiscount,
             totalTax: result.totalTax,
             grandTotal: result.grandTotal,
             roundOff: result.roundOff,
@@ -182,19 +181,6 @@ export default function NewDeliveryChallan() {
         const emptyItem = items.findIndex(i => i.itemType !== 'service' && !i.product);
         if (emptyItem !== -1) { toast.error(`Select a product for item #${emptyItem + 1}`); return; }
 
-        // Validation: Check if discount is greater than subtotal
-        const totals = calculateTotals();
-        if (discount > totals.subtotal) {
-            toast.error(`Discount (₹${discount.toFixed(2)}) cannot be greater than Subtotal (₹${totals.subtotal.toFixed(2)})`);
-            return;
-        }
-
-        // Validation: Check if grand total is negative
-        if (totals.finalTotal < 0) {
-            toast.error('Total cannot be negative. Please reduce the discount amount.');
-            return;
-        }
-
         setSubmitting(true);
         try {
             const totals = calculateTotals();
@@ -203,7 +189,10 @@ export default function NewDeliveryChallan() {
                 customerName, customerPhone,
                 customerAddress: selectedCustomer?.address,
                 customerGstin: selectedCustomer?.gstin,
-                challanDate, status, items, taxType, discount,
+                challanDate, status,
+                items: items.map(i => ({ ...i, discountAmount: i.discountAmount || 0 })),
+                taxType,
+                discount: totals.totalDiscount || 0,
                 subtotal: totals.subtotal,
                 totalTax: totals.totalTax,
                 grandTotal: totals.finalTotal,
@@ -395,8 +384,9 @@ export default function NewDeliveryChallan() {
                                     <div className="flex-1">Item</div>
                                     <div className="w-20">Qty</div>
                                     <div className="w-24">Unit</div>
+                                    <div className="w-24">Discount</div>
                                     <div className="w-28">Price</div>
-                                    {shopSettings?.gstScheme === 'REGULAR' && <div className="w-24">GST %</div>}
+                                    {shopSettings?.gstScheme !== 'COMPOSITION' && <div className="w-24">GST %</div>}
                                     <div className="w-32">Total (incl. GST)</div>
                                     <div className="w-10" />
                                 </div>
@@ -406,8 +396,10 @@ export default function NewDeliveryChallan() {
                                 const bothEnabled = shopSettings?.enableProduct !== false && shopSettings?.enableService;
                                 const isService = item.itemType === 'service';
                                 const isComposition = shopSettings?.gstScheme === 'COMPOSITION';
-                                const effectiveGstRate = (isComposition) ? 0 : item.gstRate;
-                                const lineTotal = item.quantity * item.sellingPrice * (1 + effectiveGstRate / 100);
+                                const lineTotal = calculateItemWithDiscount(
+                                    { ...item, gstRate: (isComposition || taxType === 'NONE') ? 0 : item.gstRate },
+                                    shopSettings
+                                ).itemTotal;
 
                                 return (
                                     <div key={index} className="flex flex-col p-4 bg-gray-50 rounded-lg border border-gray-200 gap-3">
@@ -513,6 +505,24 @@ export default function NewDeliveryChallan() {
                                                 </select>
                                             </div>
 
+                                            {/* Discount (₹) */}
+                                            <div className="w-24">
+                                                <input type="number" min="0" step="0.01" placeholder="0.00"
+                                                    value={item.discountAmount || 0}
+                                                    onChange={e => {
+                                                        const val = Number(e.target.value);
+                                                        const max = item.quantity * item.sellingPrice;
+                                                        if (val > max) {
+                                                            toast.error(`Discount cannot exceed item total of ₹${max.toFixed(2)}`);
+                                                            updateItem(index, 'discountAmount', max);
+                                                        } else {
+                                                            updateItem(index, 'discountAmount', val);
+                                                        }
+                                                    }}
+                                                    className="w-full px-3 py-2 border border-emerald-300 rounded-lg text-sm text-right"
+                                                    title="Item Discount (₹)" />
+                                            </div>
+
                                             {/* Price */}
                                             <div className="w-28">
                                                 <input type="number" step="0.01" placeholder="Price"
@@ -522,11 +532,12 @@ export default function NewDeliveryChallan() {
                                             </div>
 
                                             {/* GST % */}
-                                            {shopSettings?.gstScheme === 'REGULAR' && (
+                                            {shopSettings?.gstScheme !== 'COMPOSITION' && (
                                                 <div className="w-24">
                                                     <select value={item.gstRate}
                                                         onChange={(e) => updateItem(index, 'gstRate', Number(e.target.value))}
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                                        disabled={taxType === 'NONE'}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:text-gray-400">
                                                         {[0, 0.25, 3, 5, 12, 18, 28, 40].map(r => <option key={r} value={r}>{r}%</option>)}
                                                     </select>
                                                 </div>
@@ -560,21 +571,12 @@ export default function NewDeliveryChallan() {
                                 <span className="text-gray-600">Subtotal:</span>
                                 <span className="font-medium">₹{totals.subtotal.toFixed(2)}</span>
                             </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-gray-600">Discount:</span>
-                                <input type="number" min="0" step="0.01" value={discount}
-                                    max={totals.subtotal}
-                                    onChange={(e) => {
-                                        const value = Number(e.target.value);
-                                        if (value > totals.subtotal) {
-                                            toast.error(`Discount cannot exceed subtotal of ₹${totals.subtotal.toFixed(2)}`);
-                                            setDiscount(totals.subtotal);
-                                        } else {
-                                            setDiscount(value);
-                                        }
-                                    }}
-                                    className="w-32 px-3 py-1 border border-gray-300 rounded-lg text-right" placeholder="0.00" />
-                            </div>
+                            {totals.totalDiscount > 0 && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Total Discount:</span>
+                                    <span className="text-emerald-600 font-medium">-₹{totals.totalDiscount.toFixed(2)}</span>
+                                </div>
+                            )}
                             {totals.totalTax > 0 && (
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-600">{taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}:</span>
