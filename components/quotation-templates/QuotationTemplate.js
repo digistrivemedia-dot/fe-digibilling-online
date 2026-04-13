@@ -1,6 +1,22 @@
 'use client';
 
 export default function QuotationTemplate({ quotation, shopSettings }) {
+    // Derive per-item discount: use stored discountAmount, or compute from taxableAmount fallback
+    const getItemDiscount = (item) => {
+        if ((item.discountAmount || 0) > 0) return item.discountAmount;
+        const gross = (item.sellingPrice || 0) * (item.quantity || 0);
+        const taxable = item.taxableAmount !== undefined ? item.taxableAmount : gross;
+        return Math.max(0, gross - taxable);
+    };
+    const hasItemDiscounts = quotation.items.some(i => getItemDiscount(i) > 0);
+
+    // Recompute totals from items to handle old quotations where stored values may be wrong
+    const preDiscountTotal = quotation.items.reduce((s, i) => s + (i.sellingPrice || 0) * (i.quantity || 0), 0);
+    const totalDiscount = quotation.discount || 0;
+    const taxableSubtotal = preDiscountTotal - totalDiscount;
+    const totalTax = (quotation.totalCGST || 0) + (quotation.totalSGST || 0) + (quotation.totalIGST || 0);
+    const roundOff = quotation.roundOff || 0;
+    const correctGrandTotal = taxableSubtotal + totalTax + roundOff;
     // Brand color — falls back to indigo if not set
     const brand = shopSettings?.quotationBrandColor || '#4f46e5';
 
@@ -118,6 +134,7 @@ export default function QuotationTemplate({ quotation, shopSettings }) {
                                 <th className="px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wide">HSN / SAC</th>
                                 <th className="px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wide">Qty</th>
                                 <th className="px-4 py-3 text-right text-xs font-bold text-white uppercase tracking-wide">Price</th>
+                                {hasItemDiscounts && <th className="px-4 py-3 text-right text-xs font-bold text-white uppercase tracking-wide">Discount</th>}
                                 <th className="px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wide">GST %</th>
                                 <th className="px-4 py-3 text-right text-xs font-bold text-white uppercase tracking-wide">Total</th>
                             </tr>
@@ -148,6 +165,14 @@ export default function QuotationTemplate({ quotation, shopSettings }) {
                                     <td className="px-4 py-3 text-sm text-gray-900 text-right">
                                         ₹{Number(item.sellingPrice).toFixed(2)}
                                     </td>
+                                    {hasItemDiscounts && (
+                                        <td className="px-4 py-3 text-sm text-right">
+                                            {getItemDiscount(item) > 0
+                                                ? <span className="text-emerald-600 font-medium">-₹{getItemDiscount(item).toFixed(2)}</span>
+                                                : <span className="text-gray-300">—</span>
+                                            }
+                                        </td>
+                                    )}
                                     <td className="px-4 py-3 text-sm text-center">
                                         <span className="px-2 py-0.5 rounded text-xs font-bold"
                                             style={{ backgroundColor: brandLight, color: brand }}>
@@ -169,16 +194,21 @@ export default function QuotationTemplate({ quotation, shopSettings }) {
                         {/* Subtotal + tax rows */}
                         <div className="px-5 py-3 space-y-2" style={{ backgroundColor: brandLight }}>
                             <div className="flex justify-between text-sm text-gray-600">
-                                <span>Subtotal</span>
-                                <span className="font-semibold text-gray-900">₹{Number(quotation.subtotal).toFixed(2)}</span>
+                                <span>Price</span>
+                                <span className="font-semibold text-gray-900">₹{preDiscountTotal.toFixed(2)}</span>
                             </div>
 
-                            {quotation.discount > 0 && (
+                            {totalDiscount > 0 && (
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-500">Discount</span>
-                                    <span className="text-red-500 font-medium">-₹{Number(quotation.discount).toFixed(2)}</span>
+                                    <span className="text-red-500 font-medium">-₹{totalDiscount.toFixed(2)}</span>
                                 </div>
                             )}
+
+                            <div className="flex justify-between text-sm text-gray-600">
+                                <span>Subtotal</span>
+                                <span className="font-semibold text-gray-900">₹{taxableSubtotal.toFixed(2)}</span>
+                            </div>
 
                             {quotation.taxType === 'CGST_SGST' && (
                                 <>
@@ -199,10 +229,10 @@ export default function QuotationTemplate({ quotation, shopSettings }) {
                                 </div>
                             )}
 
-                            {quotation.roundOff !== 0 && (
+                            {roundOff !== 0 && (
                                 <div className="flex justify-between text-xs text-gray-400">
                                     <span>Round Off</span>
-                                    <span>₹{Number(quotation.roundOff).toFixed(2)}</span>
+                                    <span>₹{roundOff.toFixed(2)}</span>
                                 </div>
                             )}
                         </div>
@@ -212,7 +242,7 @@ export default function QuotationTemplate({ quotation, shopSettings }) {
                             style={{ backgroundColor: brand }}>
                             <span className="text-base font-bold text-white">Grand Total</span>
                             <span className="text-xl font-extrabold text-white">
-                                ₹{Number(quotation.grandTotal).toLocaleString('en-IN')}
+                                ₹{correctGrandTotal.toLocaleString('en-IN')}
                             </span>
                         </div>
                     </div>

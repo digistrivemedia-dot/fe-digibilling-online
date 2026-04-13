@@ -8,7 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import PageLoader from '@/components/PageLoader';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, quotationsAPI, shopAPI } from '@/utils/api';
-import { calculateInvoiceTotals, validateDiscount, validateInvoiceTotals } from '@/utils/calculations';
+import { calculateInvoiceTotals, calculateItemWithDiscount } from '@/utils/calculations';
 import {
   HiPlus, HiSearch, HiX, HiExclamation,
   HiCube, HiLightningBolt,
@@ -41,7 +41,6 @@ export default function EditQuotation() {
   // ── Document fields ────────────────────────────────────────────────────────
   const [items, setItems] = useState([]);
   const [taxType, setTaxType] = useState('CGST_SGST');
-  const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState('');
   const [terms, setTerms] = useState('');
   const [quotationDate, setQuotationDate] = useState('');
@@ -84,7 +83,6 @@ export default function EditQuotation() {
       setCustomerName(quotationData.customerName || '');
       setCustomerPhone(quotationData.customerPhone || '');
       setTaxType(quotationData.taxType || 'CGST_SGST');
-      setDiscount(quotationData.discount || 0);
       setNotes(quotationData.notes || '');
       setTerms(quotationData.terms || '');
       setStatus(quotationData.status || 'DRAFT');
@@ -109,6 +107,7 @@ export default function EditQuotation() {
             quantity: item.quantity || 1,
             unit: item.unit || 'NOS',
             sellingPrice: item.sellingPrice || 0,
+            discountAmount: item.discountAmount || 0,
             gstRate: item.gstRate ?? 18,
           };
         }
@@ -121,6 +120,7 @@ export default function EditQuotation() {
           quantity: item.quantity || 1,
           unit: item.unit || 'PCS',
           sellingPrice: item.sellingPrice || 0,
+          discountAmount: item.discountAmount || 0,
           gstRate: item.gstRate ?? 12,
           mrp: item.mrp || '',
           availableQuantity: null,
@@ -183,12 +183,12 @@ export default function EditQuotation() {
   // ── Item helpers ───────────────────────────────────────────────────────────
   const addProductItem = () => setItems((p) => [...p, {
     itemType: 'product', product: '', batch: '', selectedBatch: '',
-    quantity: 1, unit: 'PCS', sellingPrice: 0, gstRate: 12, mrp: '',
+    quantity: 1, unit: 'PCS', sellingPrice: 0, discountAmount: 0, gstRate: 12, mrp: '',
   }]);
 
   const addServiceItem = () => setItems((p) => [...p, {
     itemType: 'service', serviceName: '', sacCode: '',
-    quantity: 1, unit: 'NOS', sellingPrice: 0, gstRate: 18,
+    quantity: 1, unit: 'NOS', sellingPrice: 0, discountAmount: 0, gstRate: 18,
   }]);
 
   const removeItem = (i) => setItems((p) => p.filter((_, idx) => idx !== i));
@@ -214,10 +214,10 @@ export default function EditQuotation() {
 
   // ── Totals ─────────────────────────────────────────────────────────────────
   const calculateTotals = () => {
-    // Use shared calculation utility (matches backend logic) - FIX: Was applying discount AFTER GST!
-    const result = calculateInvoiceTotals(items, discount, taxType, 0, shopSettings);
+    const result = calculateInvoiceTotals(items, 0, taxType, 0, shopSettings);
     return {
       subtotal: result.subtotal,
+      totalDiscount: result.totalDiscount,
       totalTax: result.totalTax,
       grandTotalRaw: result.grandTotal,
       roundOff: result.roundOff,
@@ -255,6 +255,7 @@ export default function EditQuotation() {
           quantity: i.quantity,
           unit: i.unit,
           sellingPrice: i.sellingPrice,
+          discountAmount: i.discountAmount || 0,
           gstRate: i.gstRate,
           mrp: i.mrp,
         })),
@@ -263,7 +264,7 @@ export default function EditQuotation() {
         totalCGST: taxType === 'CGST_SGST' ? totals.totalTax / 2 : 0,
         totalSGST: taxType === 'CGST_SGST' ? totals.totalTax / 2 : 0,
         totalIGST: taxType === 'IGST' ? totals.totalTax : 0,
-        discount,
+        discount: totals.totalDiscount || 0,
         roundOff: totals.roundOff,
         grandTotal: totals.finalTotal,
         notes,
@@ -440,11 +441,12 @@ export default function EditQuotation() {
             {/* Column headers */}
             {items.length > 0 && (
               <div className="hidden md:grid grid-cols-12 gap-2 px-3 mb-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                <div className="col-span-4">Item</div>
+                <div className="col-span-3">Item</div>
                 <div className="col-span-1 text-center">Qty</div>
                 <div className="col-span-1 text-center">Unit</div>
+                <div className="col-span-2 text-center">Discount (₹)</div>
                 <div className="col-span-2 text-center">Price (₹)</div>
-                <div className="col-span-2 text-center">GST %</div>
+                <div className="col-span-1 text-center">GST %</div>
                 <div className="col-span-1 text-right">Total</div>
                 <div className="col-span-1" />
               </div>
@@ -454,7 +456,10 @@ export default function EditQuotation() {
               {items.map((item, index) => {
                 const isService = item.itemType === 'service';
                 const bothEnabled = enableProduct && enableService;
-                const lineTotal = item.quantity * item.sellingPrice * (1 + (taxType === 'NONE' ? 0 : item.gstRate) / 100);
+                const lineTotal = calculateItemWithDiscount(
+                  { ...item, gstRate: taxType === 'NONE' ? 0 : item.gstRate },
+                  shopSettings
+                ).itemTotal;
 
                 return (
                   <div key={index}
@@ -484,7 +489,7 @@ export default function EditQuotation() {
                     <div className="grid grid-cols-12 gap-2 items-center">
 
                       {/* Item selector */}
-                      <div className="col-span-12 md:col-span-4">
+                      <div className="col-span-12 md:col-span-3">
                         {isService ? (
                           <input type="text" placeholder="Service name…" value={item.serviceName || ''}
                             onChange={(e) => { const u = [...items]; u[index].serviceName = e.target.value; setItems(u); }}
@@ -517,6 +522,29 @@ export default function EditQuotation() {
                         </select>
                       </div>
 
+                      {/* Discount (₹) */}
+                      <div className="col-span-3 md:col-span-2">
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                          <input
+                            type="number" min="0" step="0.01" placeholder="0.00"
+                            value={item.discountAmount || 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const maxDiscount = item.quantity * item.sellingPrice;
+                              if (val > maxDiscount) {
+                                toast.error(`Discount cannot exceed item total of ₹${maxDiscount.toFixed(2)}`);
+                                updateItem(index, 'discountAmount', maxDiscount);
+                              } else {
+                                updateItem(index, 'discountAmount', val);
+                              }
+                            }}
+                            className="w-full pl-6 pr-2 py-2 border border-emerald-300 rounded-lg text-sm text-right focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                            title="Item Discount (₹)"
+                          />
+                        </div>
+                      </div>
+
                       {/* Price */}
                       <div className="col-span-3 md:col-span-2">
                         <div className="relative">
@@ -528,7 +556,7 @@ export default function EditQuotation() {
                       </div>
 
                       {/* GST */}
-                      <div className="col-span-3 md:col-span-2">
+                      <div className="col-span-3 md:col-span-1">
                         <select value={item.gstRate} onChange={(e) => updateItem(index, 'gstRate', Number(e.target.value))}
                           disabled={taxType === 'NONE'}
                           className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white disabled:bg-gray-100 disabled:text-gray-400">
@@ -595,6 +623,12 @@ export default function EditQuotation() {
                 <span className="text-gray-500">Subtotal</span>
                 <span className="font-semibold">₹{totals.subtotal.toFixed(2)}</span>
               </div>
+              {totals.totalDiscount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Total Discount</span>
+                  <span className="text-emerald-600 font-medium">-₹{totals.totalDiscount.toFixed(2)}</span>
+                </div>
+              )}
               {taxType !== 'NONE' && totals.totalTax > 0 && (
                 <>
                   {taxType === 'CGST_SGST' && <>
@@ -612,15 +646,6 @@ export default function EditQuotation() {
                   )}
                 </>
               )}
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">Discount</span>
-                <div className="relative">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                  <input type="number" min="0" step="0.01" value={discount}
-                    onChange={(e) => setDiscount(Number(e.target.value))}
-                    className="w-32 pl-6 pr-3 py-1.5 border border-gray-300 rounded-lg text-right text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent" />
-                </div>
-              </div>
               <div className="flex justify-between text-sm text-gray-400">
                 <span>Round Off</span>
                 <span>{totals.roundOff >= 0 ? '+' : ''}₹{totals.roundOff.toFixed(2)}</span>
