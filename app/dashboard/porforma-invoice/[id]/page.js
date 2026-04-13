@@ -200,48 +200,82 @@ export default function ProformaInvoiceDetail() {
                                     </div>
                                 </div>
                             )}
-                            <table className="w-full mb-8">
-                                <thead>
-                                    <tr className="border-b-2 border-gray-200">
-                                        {['#', 'Item', 'Qty', 'Rate', ...(shop?.gstScheme === 'REGULAR' ? ['GST'] : []), 'Amount'].map((h, i) => (
-                                            <th key={h} className={`py-3 text-sm font-semibold text-gray-600 ${i === 0 || i === 1 ? 'text-left' : 'text-right'}`}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {(p.items || []).map((item, idx) => {
-                                        const base = item.quantity * item.sellingPrice;
-                                        const tax = shop?.gstScheme === 'COMPOSITION' ? 0 : base * (item.gstRate / 100);
-                                        const total = base + tax;
-                                        return (
-                                            <tr key={idx}>
-                                                <td className="py-3 text-sm text-gray-500">{idx + 1}</td>
-                                                <td className="py-3 text-sm text-gray-900">{item.productName || item.serviceName || 'Item'}</td>
-                                                <td className="py-3 text-sm text-gray-700 text-right">{item.quantity}</td>
-                                                <td className="py-3 text-sm text-gray-700 text-right">₹{Number(item.sellingPrice).toFixed(2)}</td>
-                                                {shop?.gstScheme === 'REGULAR' && <td className="py-3 text-sm text-gray-700 text-right">{item.gstRate}%</td>}
-                                                <td className="py-3 text-sm font-medium text-gray-900 text-right">₹{total.toFixed(2)}</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                            <div className="flex justify-end">
-                                <div className="w-72 space-y-2">
-                                    <div className="flex justify-between text-sm"><span className="text-gray-600">Subtotal</span><span className='text-gray-800'>₹{Number(p.subtotal || 0).toFixed(2)}</span></div>
-                                    {shop?.gstScheme === 'REGULAR' && (
-                                        <>
-                                            {Number(p.totalCGST) > 0 && <div className="flex justify-between text-sm"><span className="text-gray-600">CGST</span><span className='text-gray-800'>₹{Number(p.totalCGST).toFixed(2)}</span></div>}
-                                            {Number(p.totalSGST) > 0 && <div className="flex justify-between text-sm"><span className="text-gray-600">SGST</span><span className='text-gray-800'>₹{Number(p.totalSGST).toFixed(2)}</span></div>}
-                                            {Number(p.totalIGST) > 0 && <div className="flex justify-between text-sm"><span className="text-gray-600">IGST</span><span className='text-gray-800'>₹{Number(p.totalIGST).toFixed(2)}</span></div>}
-                                        </>
-                                    )}
-                                    {Number(p.discount) > 0 && <div className="flex justify-between text-sm"><span className="text-gray-600">Discount</span><span className="text-red-600">-₹{Number(p.discount).toFixed(2)}</span></div>}
-                                    <div className="pt-2 border-t-2 border-gray-200 flex justify-between font-bold text-lg">
-                                        <span className='text-gray-800'>Grand Total</span><span className="text-violet-600">₹{Number(p.grandTotal || 0).toLocaleString('en-IN')}</span>
+                            {(() => {
+                                const getItemDiscount = (item) => {
+                                    if ((item.discountAmount || 0) > 0) return item.discountAmount;
+                                    const gross = (item.sellingPrice || 0) * (item.quantity || 0);
+                                    const taxable = item.taxableAmount !== undefined ? item.taxableAmount : gross;
+                                    return Math.max(0, gross - taxable);
+                                };
+                                const hasItemDiscounts = (p.items || []).some(i => getItemDiscount(i) > 0);
+                                const preDiscountTotal = (p.items || []).reduce((s, i) => s + (i.sellingPrice || 0) * (i.quantity || 0), 0);
+                                const totalDiscount = p.discount || 0;
+                                const taxableSubtotal = preDiscountTotal - totalDiscount;
+                                const totalTax = (p.totalCGST || 0) + (p.totalSGST || 0) + (p.totalIGST || 0);
+                                const roundOff = p.roundOff || 0;
+                                const correctGrandTotal = taxableSubtotal + totalTax + roundOff;
+                                return (
+                                <>
+                                <table className="w-full mb-8">
+                                    <thead>
+                                        <tr className="border-b-2 border-gray-200">
+                                            <th className="py-3 text-sm font-semibold text-gray-600 text-left">#</th>
+                                            <th className="py-3 text-sm font-semibold text-gray-600 text-left">Item</th>
+                                            <th className="py-3 text-sm font-semibold text-gray-600 text-right">Qty</th>
+                                            <th className="py-3 text-sm font-semibold text-gray-600 text-right">Rate</th>
+                                            {hasItemDiscounts && <th className="py-3 text-sm font-semibold text-gray-600 text-right">Discount</th>}
+                                            {shop?.gstScheme !== 'COMPOSITION' && <th className="py-3 text-sm font-semibold text-gray-600 text-right">GST</th>}
+                                            <th className="py-3 text-sm font-semibold text-gray-600 text-right">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {(p.items || []).map((item, idx) => {
+                                            const disc = getItemDiscount(item);
+                                            const taxable = (item.sellingPrice || 0) * (item.quantity || 0) - disc;
+                                            const tax = shop?.gstScheme === 'COMPOSITION' ? 0 : taxable * ((item.gstRate || 0) / 100);
+                                            const total = taxable + tax;
+                                            return (
+                                                <tr key={idx}>
+                                                    <td className="py-3 text-sm text-gray-500">{idx + 1}</td>
+                                                    <td className="py-3 text-sm text-gray-900">{item.productName || item.serviceName || 'Item'}</td>
+                                                    <td className="py-3 text-sm text-gray-700 text-right">{item.quantity}</td>
+                                                    <td className="py-3 text-sm text-gray-700 text-right">₹{Number(item.sellingPrice).toFixed(2)}</td>
+                                                    {hasItemDiscounts && (
+                                                        <td className="py-3 text-sm text-right">
+                                                            {disc > 0
+                                                                ? <span className="text-emerald-600 font-medium">-₹{disc.toFixed(2)}</span>
+                                                                : <span className="text-gray-300">—</span>
+                                                            }
+                                                        </td>
+                                                    )}
+                                                    {shop?.gstScheme !== 'COMPOSITION' && <td className="py-3 text-sm text-gray-700 text-right">{item.gstRate}%</td>}
+                                                    <td className="py-3 text-sm font-medium text-gray-900 text-right">₹{total.toFixed(2)}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                                <div className="flex justify-end">
+                                    <div className="w-72 space-y-2">
+                                        <div className="flex justify-between text-sm"><span className="text-gray-600">Price</span><span className="text-gray-800">₹{preDiscountTotal.toFixed(2)}</span></div>
+                                        {totalDiscount > 0 && <div className="flex justify-between text-sm"><span className="text-gray-600">Discount</span><span className="text-red-600">-₹{totalDiscount.toFixed(2)}</span></div>}
+                                        <div className="flex justify-between text-sm"><span className="text-gray-600">Subtotal</span><span className="text-gray-800">₹{taxableSubtotal.toFixed(2)}</span></div>
+                                        {shop?.gstScheme !== 'COMPOSITION' && (
+                                            <>
+                                                {Number(p.totalCGST) > 0 && <div className="flex justify-between text-sm"><span className="text-gray-600">CGST</span><span className="text-gray-800">₹{Number(p.totalCGST).toFixed(2)}</span></div>}
+                                                {Number(p.totalSGST) > 0 && <div className="flex justify-between text-sm"><span className="text-gray-600">SGST</span><span className="text-gray-800">₹{Number(p.totalSGST).toFixed(2)}</span></div>}
+                                                {Number(p.totalIGST) > 0 && <div className="flex justify-between text-sm"><span className="text-gray-600">IGST</span><span className="text-gray-800">₹{Number(p.totalIGST).toFixed(2)}</span></div>}
+                                            </>
+                                        )}
+                                        {roundOff !== 0 && <div className="flex justify-between text-xs text-gray-400"><span>Round Off</span><span>₹{roundOff.toFixed(2)}</span></div>}
+                                        <div className="pt-2 border-t-2 border-gray-200 flex justify-between font-bold text-lg">
+                                            <span className="text-gray-800">Grand Total</span><span className="text-violet-600">₹{correctGrandTotal.toLocaleString('en-IN')}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                                </>
+                                );
+                            })()}
                             {/* Bank Details - Use proforma bank details if available, otherwise fall back to invoice bank details */}
                             {(shop.pfBankName || shop.pfAccountNumber || shop.pfIfscCode || shop.invBankName || shop.invAccountNumber || shop.invIfscCode) && (
                                 <div className="mt-8 pt-6 border-t border-gray-200">

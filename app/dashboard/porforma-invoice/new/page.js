@@ -7,7 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, proformaInvoicesAPI, shopAPI, servicesAPI } from '@/utils/api';
-import { calculateInvoiceTotals } from '@/utils/calculations';
+import { calculateInvoiceTotals, calculateItemWithDiscount } from '@/utils/calculations';
 import {
     HiPlus, HiSearch, HiX, HiExclamation,
     HiCube, HiLightningBolt, HiChevronDown, HiChevronUp,
@@ -43,7 +43,6 @@ export default function NewProformaInvoice() {
     const [status, setStatus] = useState('DRAFT');
     const [taxType, setTaxType] = useState('CGST_SGST');
     const [items, setItems] = useState([]);
-    const [discount, setDiscount] = useState(0);
     const [notes, setNotes] = useState('');
     const [terms, setTerms] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -140,12 +139,12 @@ export default function NewProformaInvoice() {
     // ── Item helpers ───────────────────────────────────────────────────────
     const addProductItem = () => setItems(p => [...p, {
         itemType: 'product', product: '', batch: '', selectedBatch: '', productName: '',
-        quantity: 1, unit: 'PCS', sellingPrice: 0, gstRate: 12, mrp: '',
+        quantity: 1, unit: 'PCS', sellingPrice: 0, discountAmount: 0, gstRate: 12, mrp: '',
     }]);
 
     const addServiceItem = () => setItems(p => [...p, {
         itemType: 'service', serviceName: '', sacCode: '',
-        quantity: 1, unit: 'NOS', sellingPrice: 0, gstRate: 18,
+        quantity: 1, unit: 'NOS', sellingPrice: 0, discountAmount: 0, gstRate: 18,
     }]);
 
     const removeItem = (i) => setItems(p => p.filter((_, idx) => idx !== i));
@@ -171,10 +170,10 @@ export default function NewProformaInvoice() {
 
     // ── Totals ─────────────────────────────────────────────────────────────
     const calculateTotals = () => {
-        // Use shared calculation utility (matches backend logic)
-        const result = calculateInvoiceTotals(items, discount, taxType, 0, shopSettings);
+        const result = calculateInvoiceTotals(items, 0, taxType, 0, shopSettings);
         return {
             subtotal: result.subtotal,
+            totalDiscount: result.totalDiscount,
             totalTax: result.totalTax,
             grandTotalRaw: result.grandTotal,
             roundOff: result.roundOff,
@@ -189,18 +188,7 @@ export default function NewProformaInvoice() {
         if (!customerName.trim()) { toast.error('Customer name is required'); return; }
         if (items.length === 0) { toast.error('Add at least one item'); return; }
 
-        // Validation: Check if discount is greater than subtotal
         const totals = calculateTotals();
-        if (discount > totals.subtotal) {
-            toast.error(`Discount (₹${discount.toFixed(2)}) cannot be greater than Subtotal (₹${totals.subtotal.toFixed(2)})`);
-            return;
-        }
-
-        // Validation: Check if grand total is negative
-        if (totals.finalTotal < 0) {
-            toast.error('Total cannot be negative. Please reduce the discount amount.');
-            return;
-        }
 
         setSubmitting(true);
         try {
@@ -221,6 +209,7 @@ export default function NewProformaInvoice() {
                     quantity: i.quantity,
                     unit: i.unit,
                     sellingPrice: i.sellingPrice,
+                    discountAmount: i.discountAmount || 0,
                     gstRate: i.gstRate,
                     mrp: i.mrp,
                 })),
@@ -229,7 +218,7 @@ export default function NewProformaInvoice() {
                 totalCGST: taxType === 'CGST_SGST' ? totals.totalTax / 2 : 0,
                 totalSGST: taxType === 'CGST_SGST' ? totals.totalTax / 2 : 0,
                 totalIGST: taxType === 'IGST' ? totals.totalTax : 0,
-                discount,
+                discount: totals.totalDiscount || 0,
                 roundOff: totals.roundOff,
                 grandTotal: totals.finalTotal,
                 // Transport
@@ -445,12 +434,13 @@ export default function NewProformaInvoice() {
                         {/* Column headers */}
                         {items.length > 0 && (
                             <div className="hidden md:grid grid-cols-12 gap-2 px-3 mb-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                                <div className="col-span-4">Item</div>
+                                <div className="col-span-3">Item</div>
                                 <div className="col-span-1 text-center">Qty</div>
                                 <div className="col-span-1 text-center">Unit</div>
+                                <div className="col-span-2 text-center">Discount (₹)</div>
                                 <div className="col-span-2 text-center">Price (₹)</div>
-                                {shopSettings?.gstScheme === 'REGULAR' && (
-                                    <div className="col-span-2 text-center">GST %</div>
+                                {shopSettings?.gstScheme !== 'COMPOSITION' && (
+                                    <div className="col-span-1 text-center">GST %</div>
                                 )}
                                 <div className="col-span-1 text-right">Total</div>
                                 <div className="col-span-1" />
@@ -461,8 +451,10 @@ export default function NewProformaInvoice() {
                             {items.map((item, index) => {
                                 const isService = item.itemType === 'service';
                                 const isComposition = shopSettings?.gstScheme === 'COMPOSITION';
-                                const effectiveGstRate = (isComposition || taxType === 'NONE') ? 0 : item.gstRate;
-                                const lineTotal = item.quantity * item.sellingPrice * (1 + effectiveGstRate / 100);
+                                const lineTotal = calculateItemWithDiscount(
+                                    { ...item, gstRate: (isComposition || taxType === 'NONE') ? 0 : item.gstRate },
+                                    shopSettings
+                                ).itemTotal;
                                 const bothEnabled = enableProduct && enableService;
 
                                 return (
@@ -486,7 +478,7 @@ export default function NewProformaInvoice() {
                                         )}
 
                                         <div className="grid grid-cols-12 gap-2 items-center">
-                                            <div className="col-span-12 md:col-span-4">
+                                            <div className="col-span-12 md:col-span-3">
                                                 {isService ? (
                                                     (() => {
                                                         const filtered = services.filter(s =>
@@ -560,6 +552,28 @@ export default function NewProformaInvoice() {
                                                 </select>
                                             </div>
 
+                                            {/* Discount (₹) */}
+                                            <div className="col-span-3 md:col-span-2">
+                                                <div className="relative">
+                                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                                    <input type="number" min="0" step="0.01" placeholder="0.00"
+                                                        value={item.discountAmount || 0}
+                                                        onChange={e => {
+                                                            const val = Number(e.target.value);
+                                                            const maxDiscount = item.quantity * item.sellingPrice;
+                                                            if (val > maxDiscount) {
+                                                                toast.error(`Discount cannot exceed item total of ₹${maxDiscount.toFixed(2)}`);
+                                                                updateItem(index, 'discountAmount', maxDiscount);
+                                                            } else {
+                                                                updateItem(index, 'discountAmount', val);
+                                                            }
+                                                        }}
+                                                        className="w-full pl-6 pr-2 py-2 border border-emerald-300 rounded-lg text-sm text-right focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                                                        title="Item Discount (₹)" />
+                                                </div>
+                                            </div>
+
+                                            {/* Price */}
                                             <div className="col-span-3 md:col-span-2">
                                                 <div className="relative">
                                                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
@@ -569,8 +583,8 @@ export default function NewProformaInvoice() {
                                                 </div>
                                             </div>
 
-                                            {shopSettings?.gstScheme === 'REGULAR' && (
-                                                <div className="col-span-3 md:col-span-2">
+                                            {shopSettings?.gstScheme !== 'COMPOSITION' && (
+                                                <div className="col-span-3 md:col-span-1">
                                                     <select value={item.gstRate} onChange={e => updateItem(index, 'gstRate', Number(e.target.value))}
                                                         disabled={taxType === 'NONE'}
                                                         className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-400 focus:border-transparent bg-white disabled:bg-gray-100 disabled:text-gray-400">
@@ -634,24 +648,12 @@ export default function NewProformaInvoice() {
                                 <span className="text-gray-500">Subtotal</span>
                                 <span className="font-semibold">₹{totals.subtotal.toFixed(2)}</span>
                             </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-gray-500">Discount</span>
-                                <div className="relative">
-                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                                    <input type="number" min="0" step="0.01" value={discount}
-                                        max={totals.subtotal}
-                                        onChange={e => {
-                                            const value = Number(e.target.value);
-                                            if (value > totals.subtotal) {
-                                                toast.error(`Discount cannot exceed subtotal of ₹${totals.subtotal.toFixed(2)}`);
-                                                setDiscount(totals.subtotal);
-                                            } else {
-                                                setDiscount(value);
-                                            }
-                                        }}
-                                        className="w-32 pl-6 pr-3 py-1.5 border border-gray-300 rounded-lg text-right text-sm focus:ring-2 focus:ring-violet-400 focus:border-transparent" />
+                            {totals.totalDiscount > 0 && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">Total Discount</span>
+                                    <span className="text-emerald-600 font-medium">-₹{totals.totalDiscount.toFixed(2)}</span>
                                 </div>
-                            </div>
+                            )}
                             {taxType !== 'NONE' && totals.totalTax > 0 && (
                                 <>
                                     {taxType === 'CGST_SGST' && <>

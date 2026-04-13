@@ -7,8 +7,8 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import PageLoader from '@/components/PageLoader';
 import Modal from '@/components/Modal';
-import { productsAPI, customersAPI, proformaInvoicesAPI } from '@/utils/api';
-import { calculateInvoiceTotals } from '@/utils/calculations';
+import { productsAPI, customersAPI, proformaInvoicesAPI, shopAPI } from '@/utils/api';
+import { calculateInvoiceTotals, calculateItemWithDiscount } from '@/utils/calculations';
 import { HiPlus, HiSearch, HiX, HiExclamation } from 'react-icons/hi';
 
 export default function EditProformaInvoice() {
@@ -19,10 +19,10 @@ export default function EditProformaInvoice() {
 
     const [products, setProducts] = useState([]);
     const [customers, setCustomers] = useState([]);
+    const [shopSettings, setShopSettings] = useState(null);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [items, setItems] = useState([]);
     const [taxType, setTaxType] = useState('CGST_SGST');
-    const [discount, setDiscount] = useState(0);
     const [notes, setNotes] = useState('');
     const [terms, setTerms] = useState('');
     const [customerName, setCustomerName] = useState('');
@@ -63,28 +63,34 @@ export default function EditProformaInvoice() {
 
     const loadData = async () => {
         try {
-            const [batchesData, customersData, pd] = await Promise.all([
+            const [batchesData, customersData, pd, shopData] = await Promise.all([
                 productsAPI.getBatchesForInvoice(),
                 customersAPI.getAll(),
                 proformaInvoicesAPI.getOne(params.id),
+                shopAPI.get(),
             ]);
             setProducts(batchesData);
             setCustomers(customersData);
+            setShopSettings(shopData);
             setCustomerName(pd.customerName || '');
             setCustomerPhone(pd.customerPhone || '');
             setTaxType(pd.taxType || 'CGST_SGST');
-            setDiscount(pd.discount || 0);
             setNotes(pd.notes || '');
             setTerms(pd.terms || '');
             setStatus(pd.status || 'DRAFT');
             setProformaDate(pd.proformaDate ? new Date(pd.proformaDate).toISOString().split('T')[0] : '');
             setItems((pd.items || []).map(item => ({
+                itemType: item.itemType || 'product',
                 product: item.product?._id || item.product || '',
                 batch: item.batch?._id || item.batch || '',
                 selectedBatch: '',
-                productName: item.productName,
+                productName: item.productName || '',
+                serviceName: item.serviceName || '',
+                sacCode: item.sacCode || '',
                 quantity: item.quantity || 1,
+                unit: item.unit || 'PCS',
                 sellingPrice: item.sellingPrice || 0,
+                discountAmount: item.discountAmount || 0,
                 gstRate: item.gstRate || 0,
                 availableQuantity: null,
             })));
@@ -150,10 +156,10 @@ export default function EditProformaInvoice() {
     };
 
     const calculateTotals = () => {
-        // Use shared calculation utility (matches backend logic) - FIX: Was applying discount AFTER GST!
-        const result = calculateInvoiceTotals(items, discount, taxType, 0, shopSettings);
+        const result = calculateInvoiceTotals(items, 0, taxType, 0, shopSettings);
         return {
             subtotal: result.subtotal,
+            totalDiscount: result.totalDiscount,
             totalTax: result.totalTax,
             grandTotal: result.grandTotal,
             roundOff: result.roundOff,
@@ -173,12 +179,14 @@ export default function EditProformaInvoice() {
                 customerName, customerPhone,
                 customerAddress: selectedCustomer?.address,
                 customerGstin: selectedCustomer?.gstin,
-                proformaDate, status, items, taxType,
+                proformaDate, status,
+                items: items.map(i => ({ ...i, discountAmount: i.discountAmount || 0 })),
+                taxType,
                 subtotal: totals.subtotal, totalTax: totals.totalTax,
                 totalCGST: taxType === 'CGST_SGST' ? totals.totalTax / 2 : 0,
                 totalSGST: taxType === 'CGST_SGST' ? totals.totalTax / 2 : 0,
                 totalIGST: taxType === 'IGST' ? totals.totalTax : 0,
-                discount, roundOff: totals.roundOff, grandTotal: totals.finalTotal, notes, terms,
+                discount: totals.totalDiscount || 0, roundOff: totals.roundOff, grandTotal: totals.finalTotal, notes, terms,
                 // PO details
                 poNumber: po.poNumber,
                 poDate: po.poDate || undefined,
@@ -306,39 +314,56 @@ export default function EditProformaInvoice() {
                         </div>
                         <div className="space-y-4">
                             {items.length > 0 && (
-                                <div className="flex gap-4 px-4 text-xs font-semibold text-gray-600 uppercase">
-                                    <div className="flex-1">Product</div><div className="w-20">Qty</div><div className="w-28">Price</div><div className="w-24">GST %</div><div className="w-32">Total</div><div className="w-10"></div>
+                                <div className="flex gap-3 px-4 text-xs font-semibold text-gray-600 uppercase">
+                                    <div className="flex-1">Product</div><div className="w-16">Qty</div><div className="w-24">Discount</div><div className="w-28">Price</div><div className="w-20">GST %</div><div className="w-28">Total</div><div className="w-8"></div>
                                 </div>
                             )}
-                            {items.map((item, index) => (
-                                <div key={index} className="flex gap-4 items-start p-4 bg-gray-50 rounded-lg">
+                            {items.map((item, index) => {
+                                const lineTotal = calculateItemWithDiscount(item, null).itemTotal;
+                                return (
+                                <div key={index} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg">
                                     <div className="flex-1">
                                         <select value={item.selectedBatch || ''} onChange={(e) => updateItem(index, 'product', e.target.value)}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500">
-                                            <option value="">{item.productName || 'Select Product'}</option>
+                                            <option value="">{item.productName || item.serviceName || 'Select Product'}</option>
                                             {products.map(b => <option key={b.batchId} value={JSON.stringify(b)}>{b.label}</option>)}
                                         </select>
                                     </div>
-                                    <div className="w-20">
+                                    <div className="w-16">
                                         <input type="number" min="1" value={item.quantity} onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                                    </div>
+                                    <div className="w-24">
+                                        <input type="number" min="0" step="0.01" placeholder="0.00" value={item.discountAmount || 0}
+                                            onChange={e => {
+                                                const val = Number(e.target.value);
+                                                const max = item.quantity * item.sellingPrice;
+                                                if (val > max) {
+                                                    toast.error(`Discount cannot exceed ₹${max.toFixed(2)}`);
+                                                    updateItem(index, 'discountAmount', max);
+                                                } else {
+                                                    updateItem(index, 'discountAmount', val);
+                                                }
+                                            }}
+                                            className="w-full px-3 py-2 border border-emerald-300 rounded-lg text-sm text-right" />
                                     </div>
                                     <div className="w-28">
                                         <input type="number" step="0.01" value={item.sellingPrice} onChange={(e) => updateItem(index, 'sellingPrice', Number(e.target.value))}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
                                     </div>
-                                    <div className="w-24">
+                                    <div className="w-20">
                                         <select value={item.gstRate} onChange={(e) => updateItem(index, 'gstRate', Number(e.target.value))}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                                             {[0, 0.25, 3, 5, 12, 18, 28, 40].map(r => <option key={r} value={r}>{r}%</option>)}
                                         </select>
                                     </div>
-                                    <div className="w-32 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm">
-                                        ₹{(item.quantity * item.sellingPrice * (1 + item.gstRate / 100)).toFixed(2)}
+                                    <div className="w-28 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm">
+                                        ₹{lineTotal.toFixed(2)}
                                     </div>
                                     <button type="button" onClick={() => removeItem(index)} className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg">✕</button>
                                 </div>
-                            ))}
+                                );
+                            })}
                             {items.length === 0 && <div className="text-center py-8 text-gray-500">No items. Click "Add Item" to start.</div>}
                         </div>
                     </div>
@@ -348,12 +373,13 @@ export default function EditProformaInvoice() {
                         <h2 className="text-lg font-semibold text-gray-900 mb-4">Summary</h2>
                         <div className="space-y-3">
                             <div className="flex justify-between text-sm"><span className="text-gray-600">Subtotal:</span><span className="font-medium">₹{totals.subtotal.toFixed(2)}</span></div>
+                            {totals.totalDiscount > 0 && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Total Discount:</span>
+                                    <span className="text-emerald-600 font-medium">-₹{totals.totalDiscount.toFixed(2)}</span>
+                                </div>
+                            )}
                             {totals.totalTax > 0 && <div className="flex justify-between text-sm"><span className="text-gray-600">{taxType === 'CGST_SGST' ? 'CGST + SGST' : 'IGST'}:</span><span className="font-medium">₹{totals.totalTax.toFixed(2)}</span></div>}
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-gray-600">Discount:</span>
-                                <input type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(Number(e.target.value))}
-                                    className="w-32 px-3 py-1 border border-gray-300 rounded-lg text-right" />
-                            </div>
                             <div className="pt-3 border-t border-gray-200 flex justify-between text-lg font-bold">
                                 <span>Grand Total:</span><span className="text-violet-600">₹{totals.finalTotal.toLocaleString('en-IN')}</span>
                             </div>
