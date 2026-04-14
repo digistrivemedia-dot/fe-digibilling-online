@@ -23,10 +23,11 @@ export default function BankLedgerTab({ dateRange, setDateRange }) {
 
         try {
             // Fetch all bank transactions
-            const [invoices, purchases, expenses] = await Promise.all([
+            const [invoicesRes, purchases, expenses] = await Promise.all([
                 invoicesAPI.getAll({
                     startDate: dateRange.startDate,
-                    endDate: dateRange.endDate
+                    endDate: dateRange.endDate,
+                    limit: 10000,
                 }),
                 purchasesAPI.getAll({
                     startDate: dateRange.startDate,
@@ -37,6 +38,8 @@ export default function BankLedgerTab({ dateRange, setDateRange }) {
                     endDate: dateRange.endDate
                 })
             ]);
+            // invoicesAPI returns { invoices: [], pagination: {} } — extract the array
+            const invoices = Array.isArray(invoicesRes) ? invoicesRes : (invoicesRes?.invoices || []);
 
             const transactions = [];
             let openingBalance = 0; // Could be fetched from previous period

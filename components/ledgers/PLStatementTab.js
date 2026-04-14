@@ -23,11 +23,13 @@ export default function PLStatementTab({ dateRange, setDateRange }) {
 
         try {
             // Fetch all data
-            const [invoices, purchases, expenses] = await Promise.all([
-                invoicesAPI.getAll({ startDate: dateRange.startDate, endDate: dateRange.endDate }),
+            const [invoicesRes, purchases, expenses] = await Promise.all([
+                invoicesAPI.getAll({ startDate: dateRange.startDate, endDate: dateRange.endDate, limit: 10000 }),
                 purchasesAPI.getAll({ startDate: dateRange.startDate, endDate: dateRange.endDate }),
                 expensesAPI.getAll({ startDate: dateRange.startDate, endDate: dateRange.endDate })
             ]);
+            // invoicesAPI returns { invoices: [], pagination: {} } — extract the array
+            const invoices = Array.isArray(invoicesRes) ? invoicesRes : (invoicesRes?.invoices || []);
 
             // Calculate revenue
             const totalSales = invoices.reduce((sum, inv) => sum + inv.grandTotal, 0);

@@ -22,13 +22,15 @@ export default function TrialBalanceTab({ dateRange, setDateRange }) {
 
         try {
             // Fetch all data
-            const [invoices, purchases, expenses, customers, suppliers] = await Promise.all([
-                invoicesAPI.getAll({ startDate: dateRange.startDate, endDate: dateRange.endDate }),
+            const [invoicesRes, purchases, expenses, customers, suppliers] = await Promise.all([
+                invoicesAPI.getAll({ startDate: dateRange.startDate, endDate: dateRange.endDate, limit: 10000 }),
                 purchasesAPI.getAll({ startDate: dateRange.startDate, endDate: dateRange.endDate }),
                 expensesAPI.getAll({ startDate: dateRange.startDate, endDate: dateRange.endDate }),
                 customersAPI.getAll(),
                 suppliersAPI.getAll()
             ]);
+            // invoicesAPI returns { invoices: [], pagination: {} } — extract the array
+            const invoices = Array.isArray(invoicesRes) ? invoicesRes : (invoicesRes?.invoices || []);
 
             const accounts = [];
 

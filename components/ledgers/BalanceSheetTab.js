@@ -28,11 +28,13 @@ export default function BalanceSheetTab({ dateRange, setDateRange }) {
 
         try {
             // Fetch all data up to the selected date
-            const [invoices, purchases, expenses] = await Promise.all([
-                invoicesAPI.getAll({ endDate: dateRange.endDate }),
+            const [invoicesRes, purchases, expenses] = await Promise.all([
+                invoicesAPI.getAll({ endDate: dateRange.endDate, limit: 10000 }),
                 purchasesAPI.getAll({ endDate: dateRange.endDate }),
                 expensesAPI.getAll({ endDate: dateRange.endDate })
             ]);
+            // invoicesAPI returns { invoices: [], pagination: {} } — extract the array
+            const invoices = Array.isArray(invoicesRes) ? invoicesRes : (invoicesRes?.invoices || []);
 
             // ASSETS
             // Current Assets
