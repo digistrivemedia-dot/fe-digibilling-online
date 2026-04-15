@@ -8,6 +8,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { servicesAPI } from '@/utils/api';
+import { useServicesStore } from '@/store/useServicesStore';
 import {
     HiPlus,
     HiSearch,
@@ -36,8 +37,7 @@ export default function Services() {
     const router = useRouter();
     const toast = useToast();
 
-    const [services, setServices] = useState([]);
-    const [loadingServices, setLoadingServices] = useState(true);
+    const { items: services, loading: loadingServices, fetchItems: fetchServices, invalidate: invalidateServices } = useServicesStore();
     const [showModal, setShowModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [errors, setErrors] = useState({});
@@ -53,18 +53,15 @@ export default function Services() {
     }, [user, loading, router]);
 
     const loadServices = async () => {
+        const params = {};
+        if (searchTerm && searchTerm.trim() !== '') {
+            params.search = searchTerm;
+        }
         try {
-            const params = {};
-            if (searchTerm && searchTerm.trim() !== '') {
-                params.search = searchTerm;
-            }
-            const data = await servicesAPI.getAll(params);
-            setServices(data);
+            await fetchServices(params);
         } catch (error) {
             console.error('Error loading services:', error);
             toast.error('Failed to load services');
-        } finally {
-            setLoadingServices(false);
         }
     };
 
@@ -89,6 +86,7 @@ export default function Services() {
             await servicesAPI.create(formData);
             toast.success('Service added successfully!');
             closeModal();
+            invalidateServices();
             loadServices();
         } catch (error) {
             toast.error(error.message || 'An error occurred');
@@ -102,6 +100,7 @@ export default function Services() {
         try {
             await servicesAPI.delete(service._id);
             toast.success('Service deleted successfully');
+            invalidateServices();
             loadServices();
         } catch (error) {
             toast.error(error.message || 'Failed to delete service');

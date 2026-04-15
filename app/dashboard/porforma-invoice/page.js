@@ -41,13 +41,16 @@ export default function ProformaInvoicesPage() {
 
     useEffect(() => {
         if (!loading && !user) router.push('/login');
-        else if (user) fetchItems();
+        else if (user) fetchItems().catch(err => {
+            console.error('Error loading proforma invoices:', err);
+            toast.error('Failed to load proforma invoices');
+        });
     }, [user, loading]);
 
     // Reload data when tab becomes visible — respects cache TTL
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (!document.hidden && user) fetchItems();
+            if (!document.hidden && user) fetchItems().catch(() => {});
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);

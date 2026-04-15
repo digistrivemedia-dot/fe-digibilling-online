@@ -26,12 +26,19 @@ export const AuthProvider = ({ children }) => {
 
   // On mount: restore session from localStorage (client-side only)
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    if (token && userData) {
-      _setUser(JSON.parse(userData));
+    try {
+      const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      if (token && userData) {
+        _setUser(JSON.parse(userData));
+      }
+    } catch {
+      // Corrupted localStorage data — clear it and let user log in again
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    } finally {
+      _setLoading(false);
     }
-    _setLoading(false);
   }, []);
 
   const login = async (credentials) => {

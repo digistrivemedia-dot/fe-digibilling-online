@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'; // useState kept for search
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
@@ -10,14 +11,22 @@ import { HiPlus, HiSearch, HiEye } from 'react-icons/hi';
 import Link from 'next/link';
 
 export default function SalesReturnsPage() {
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const toast = useToast();
   const { items: salesReturns, stats, loading, fetchItems } = useSalesReturnsStore();
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    fetchItems();
-  }, []);
+    if (!authLoading && !user) {
+      router.push('/login');
+    } else if (user) {
+      fetchItems().catch(err => {
+        console.error('Error loading sales returns:', err);
+        toast.error('Failed to load sales returns');
+      });
+    }
+  }, [user, authLoading]);
 
   const filteredReturns = salesReturns.filter(ret =>
     ret.creditNoteNumber?.toLowerCase().includes(search.toLowerCase()) ||

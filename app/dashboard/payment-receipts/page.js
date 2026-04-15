@@ -54,7 +54,10 @@ export default function PaymentReceiptsPage() {
     if (!loading && !user) {
       router.push('/login');
     } else if (user) {
-      fetchItems();
+      fetchItems().catch(err => {
+        console.error('Error loading payment receipts:', err);
+        toast.error('Failed to load payment receipts');
+      });
     }
   }, [user, loading]);
 

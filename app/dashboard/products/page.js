@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { productsAPI, inventoryAPI } from '@/utils/api';
+import { useProductsStore } from '@/store/useProductsStore';
 import {
   HiPlus,
   HiSearch,
@@ -28,8 +29,7 @@ export default function Products() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const [products, setProducts] = useState([]);
-  const [loadingProducts, setLoadingProducts] = useState(true);
+  const { items: products, pagination, loading: loadingProducts, fetchItems: fetchProducts, invalidate: invalidateProducts } = useProductsStore();
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [errors, setErrors] = useState({});
@@ -38,7 +38,6 @@ export default function Products() {
   // Pagination state
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
-  const [pagination, setPagination] = useState({});
 
   // Search and filter state
   const [search, setSearch] = useState('');
@@ -86,27 +85,21 @@ export default function Products() {
   }, [page, limit, search, filters.itemStatus, filters.category, sortBy, sortOrder]);
 
   const loadProducts = async () => {
-    setLoadingProducts(true);
+    const params = {
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      ...(search && { search }),
+      ...Object.fromEntries(
+        Object.entries(filters).filter(([_, v]) => v !== '')
+      )
+    };
     try {
-      const params = {
-        page,
-        limit,
-        sortBy,
-        sortOrder,
-        ...(search && { search }),
-        ...Object.fromEntries(
-          Object.entries(filters).filter(([_, v]) => v !== '')
-        )
-      };
-
-      const data = await productsAPI.getAllWithBatches(params);
-      setProducts(data.products || data); // Handle both old and new response format
-      setPagination(data.pagination || {});
+      await fetchProducts(params);
     } catch (error) {
       console.error('Error loading products:', error);
       toast.error('Failed to load products');
-    } finally {
-      setLoadingProducts(false);
     }
   };
 
@@ -222,6 +215,7 @@ export default function Products() {
       }
       setShowModal(false);
       resetForm();
+      invalidateProducts();
       loadProducts();
     } catch (error) {
       toast.error(error.message || 'An error occurred');
@@ -261,6 +255,7 @@ export default function Products() {
         } else {
           toast.success('Batch deleted successfully');
         }
+        invalidateProducts();
         loadProducts();
       } catch (error) {
         toast.error(error.message || 'An error occurred');
@@ -273,6 +268,7 @@ export default function Products() {
       try {
         await productsAPI.delete(productId);
         toast.success('Product deleted successfully');
+        invalidateProducts();
         loadProducts();
       } catch (error) {
         toast.error(error.message || 'An error occurred');
@@ -284,7 +280,8 @@ export default function Products() {
     try {
       await inventoryAPI.toggleBatchActive(batchId);
       toast.success(`Batch ${isCurrentlyActive ? 'deactivated' : 'activated'} successfully!`);
-      loadProducts(); // Reload to see updated status
+      invalidateProducts();
+      loadProducts();
     } catch (error) {
       toast.error(error.message || 'Failed to toggle batch status');
     }

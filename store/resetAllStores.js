@@ -8,6 +8,8 @@ import { usePaymentReceiptsStore } from './usePaymentReceiptsStore';
 import { useSalesReturnsStore } from './useSalesReturnsStore';
 import { useProformaStore } from './useProformaStore';
 import { useDeliveryChallansStore } from './useDeliveryChallansStore';
+import { useProductsStore } from './useProductsStore';
+import { useServicesStore } from './useServicesStore';
 
 export const resetAllStores = () => {
   useShopStore.getState().reset();
@@ -18,4 +20,6 @@ export const resetAllStores = () => {
   useSalesReturnsStore.getState().reset();
   useProformaStore.getState().reset();
   useDeliveryChallansStore.getState().reset();
+  useProductsStore.getState().reset();
+  useServicesStore.getState().reset();
 };
