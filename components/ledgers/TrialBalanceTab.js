@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { HiDocumentReport } from 'react-icons/hi';
-import { invoicesAPI, purchasesAPI, expensesAPI, customersAPI, suppliersAPI } from '@/utils/api';
+import { invoicesAPI, purchasesAPI, expensesAPI } from '@/utils/api';
 import { useToast } from '@/context/ToastContext';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
@@ -22,12 +22,10 @@ export default function TrialBalanceTab({ dateRange, setDateRange }) {
 
         try {
             // Fetch all data
-            const [invoicesRes, purchases, expenses, customers, suppliers] = await Promise.all([
+            const [invoicesRes, purchases, expenses] = await Promise.all([
                 invoicesAPI.getAll({ startDate: dateRange.startDate, endDate: dateRange.endDate, limit: 10000 }),
                 purchasesAPI.getAll({ startDate: dateRange.startDate, endDate: dateRange.endDate }),
                 expensesAPI.getAll({ startDate: dateRange.startDate, endDate: dateRange.endDate }),
-                customersAPI.getAll(),
-                suppliersAPI.getAll()
             ]);
             // invoicesAPI returns { invoices: [], pagination: {} } — extract the array
             const invoices = Array.isArray(invoicesRes) ? invoicesRes : (invoicesRes?.invoices || []);

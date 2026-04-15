@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { HiDocumentReport } from 'react-icons/hi';
-import { customersAPI, invoicesAPI } from '@/utils/api';
+import { invoicesAPI } from '@/utils/api';
+import { useCustomersStore } from '@/store/useCustomersStore';
 import { useToast } from '@/context/ToastContext';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import LedgerFilters from './LedgerFilters';
@@ -11,23 +12,14 @@ import LedgerTable from './LedgerTable';
 
 export default function CustomerLedgerTab({ dateRange, setDateRange }) {
     const toast = useToast();
+    const { items: customers, fetchItems: fetchCustomers } = useCustomersStore();
     const [loading, setLoading] = useState(false);
     const [ledgerData, setLedgerData] = useState(null);
     const [selectedCustomerId, setSelectedCustomerId] = useState('ALL');
-    const [customers, setCustomers] = useState([]);
     const [expandedCustomers, setExpandedCustomers] = useState({});
 
-    // Load customers for dropdown
     useEffect(() => {
-        const loadCustomers = async () => {
-            try {
-                const customersList = await customersAPI.getAll();
-                setCustomers(customersList);
-            } catch (error) {
-                console.error('Error loading customers:', error);
-            }
-        };
-        loadCustomers();
+        fetchCustomers().catch(err => console.error('Error loading customers:', err));
     }, []);
 
     const generateLedger = async () => {
@@ -40,14 +32,12 @@ export default function CustomerLedgerTab({ dateRange, setDateRange }) {
         setLedgerData(null);
 
         try {
-            // Fetch customers and invoices
-            const [allCustomers, invoiceResponse] = await Promise.all([
-                customersAPI.getAll(),
-                invoicesAPI.getAll({
-                    startDate: dateRange.startDate,
-                    endDate: dateRange.endDate
-                })
-            ]);
+            // Fetch invoices (customers already loaded from store)
+            const invoiceResponse = await invoicesAPI.getAll({
+                startDate: dateRange.startDate,
+                endDate: dateRange.endDate
+            });
+            const allCustomers = customers;
 
             // Extract invoices array from response (API returns { invoices: [...], pagination: {...} })
             const invoices = Array.isArray(invoiceResponse) ? invoiceResponse : (invoiceResponse.invoices || []);

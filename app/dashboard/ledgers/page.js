@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { HiDownload, HiDocumentReport } from 'react-icons/hi';
-import { shopAPI } from '@/utils/api';
+import { useShopStore } from '@/store/useShopStore';
 import * as XLSX from 'xlsx';
 
 // Import all ledger tab components
@@ -18,30 +18,16 @@ import BalanceSheetTab from '@/components/ledgers/BalanceSheetTab';
 
 export default function LedgersPage() {
     const toast = useToast();
+    const { shopSettings, fetchShopSettings } = useShopStore();
+    const shopName = shopSettings?.shopName || 'Billing Software';
     const [activeTab, setActiveTab] = useState('customerLedger');
     const [dateRange, setDateRange] = useState({
         startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
         endDate: new Date().toISOString().split('T')[0]
     });
-    const [shopName, setShopName] = useState('Billing Software');
-    const [shopSettings, setShopSettings] = useState(null);
 
-    // Fetch shop settings and update page title
     useEffect(() => {
-        const loadShopSettings = async () => {
-            try {
-                const settings = await shopAPI.get();
-                setShopSettings(settings);
-                if (settings && settings.shopName) {
-                    const appTitle = `${settings.shopName} - Billing Software`;
-                    setShopName(settings.shopName);
-                    document.title = appTitle;
-                }
-            } catch (error) {
-                console.error('Error loading shop settings:', error);
-            }
-        };
-        loadShopSettings();
+        fetchShopSettings();
     }, []);
 
     const tabs = [

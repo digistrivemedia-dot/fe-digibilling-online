@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { HiDocumentReport } from 'react-icons/hi';
-import { suppliersAPI, purchasesAPI } from '@/utils/api';
+import { purchasesAPI } from '@/utils/api';
+import { useSuppliersStore } from '@/store/useSuppliersStore';
 import { useToast } from '@/context/ToastContext';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import LedgerFilters from './LedgerFilters';
@@ -11,23 +12,14 @@ import LedgerTable from './LedgerTable';
 
 export default function SupplierLedgerTab({ dateRange, setDateRange }) {
     const toast = useToast();
+    const { items: suppliers, fetchItems: fetchSuppliers } = useSuppliersStore();
     const [loading, setLoading] = useState(false);
     const [ledgerData, setLedgerData] = useState(null);
     const [selectedSupplierId, setSelectedSupplierId] = useState('ALL');
-    const [suppliers, setSuppliers] = useState([]);
     const [expandedSuppliers, setExpandedSuppliers] = useState({});
 
-    // Load suppliers for dropdown
     useEffect(() => {
-        const loadSuppliers = async () => {
-            try {
-                const suppliersList = await suppliersAPI.getAll();
-                setSuppliers(suppliersList);
-            } catch (error) {
-                console.error('Error loading suppliers:', error);
-            }
-        };
-        loadSuppliers();
+        fetchSuppliers().catch(err => console.error('Error loading suppliers:', err));
     }, []);
 
     const generateLedger = async () => {
@@ -40,9 +32,9 @@ export default function SupplierLedgerTab({ dateRange, setDateRange }) {
         setLedgerData(null);
 
         try {
-            // Fetch suppliers and purchases
+            // Fetch purchases (suppliers already loaded from store)
             const [allSuppliers, purchases] = await Promise.all([
-                suppliersAPI.getAll(),
+                Promise.resolve(suppliers),
                 purchasesAPI.getAll({
                     startDate: dateRange.startDate,
                     endDate: dateRange.endDate

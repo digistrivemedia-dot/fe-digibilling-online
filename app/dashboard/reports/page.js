@@ -5,12 +5,15 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { HiDownload, HiDocumentReport } from 'react-icons/hi';
-import { reportsAPI, shopAPI } from '@/utils/api';
+import { reportsAPI } from '@/utils/api';
+import { useShopStore } from '@/store/useShopStore';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 
 export default function ReportsPage() {
   const toast = useToast();
+  const { shopSettings, fetchShopSettings } = useShopStore();
+  const shopName = shopSettings?.shopName || 'Billing Software';
   const [activeTab, setActiveTab] = useState('gstr1');
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
@@ -18,26 +21,9 @@ export default function ReportsPage() {
   });
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
-  const [shopName, setShopName] = useState('Billing Software');
-  const [shopSettings, setShopSettings] = useState(null);
 
-  // Fetch shop settings and update page title
   useEffect(() => {
-    const loadShopSettings = async () => {
-      try {
-        const settings = await shopAPI.get();
-        setShopSettings(settings);
-        if (settings && settings.shopName) {
-          const appTitle = `${settings.shopName} - Billing Software`;
-          setShopName(settings.shopName);
-          // Update browser page title dynamically
-          document.title = appTitle;
-        }
-      } catch (error) {
-        console.error('Error loading shop settings:', error);
-      }
-    };
-    loadShopSettings();
+    fetchShopSettings();
   }, []);
 
   const tabs = [
