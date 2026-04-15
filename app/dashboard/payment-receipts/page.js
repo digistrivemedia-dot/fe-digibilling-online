@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { invoicesAPI } from '@/utils/api';
+import { usePaymentReceiptsStore } from '@/store/usePaymentReceiptsStore';
 import {
   HiSearch,
   HiEye,
@@ -43,8 +44,7 @@ export default function PaymentReceiptsPage() {
   const router = useRouter();
   const toast = useToast();
 
-  const [invoices, setInvoices] = useState([]);
-  const [loadingData, setLoadingData] = useState(true);
+  const { items: invoices, loading: loadingData, fetchItems, invalidate } = usePaymentReceiptsStore();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -54,25 +54,9 @@ export default function PaymentReceiptsPage() {
     if (!loading && !user) {
       router.push('/login');
     } else if (user) {
-      loadData();
+      fetchItems();
     }
   }, [user, loading]);
-
-  const loadData = async () => {
-    setLoadingData(true);
-    try {
-      const data = await invoicesAPI.getAll();
-      // Handle both old (array) and new (object with invoices array) response format
-      const invoicesList = data.invoices || data;
-      // Only show invoices where some payment has been received
-      setInvoices(invoicesList.filter(inv => inv.paidAmount > 0));
-    } catch (error) {
-      console.error('Error loading payment receipts:', error);
-      toast.error(error.message || 'Failed to load payment receipts');
-    } finally {
-      setLoadingData(false);
-    }
-  };
 
   // Stats computed from data
   const totalAmount = invoices.reduce((sum, inv) => sum + (inv.paidAmount || 0), 0);
@@ -111,7 +95,8 @@ export default function PaymentReceiptsPage() {
       await invoicesAPI.delete(deleteConfirm._id);
       toast.success('Invoice deleted successfully');
       setDeleteConfirm(null);
-      loadData();
+      invalidate();
+      fetchItems(true);
     } catch (error) {
       toast.error(error.message || 'Failed to delete invoice');
     } finally {

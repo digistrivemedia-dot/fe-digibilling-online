@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { invoicesAPI, customersAPI } from '@/utils/api';
+import { useInvoicesStore } from '@/store/useInvoicesStore';
 import Link from 'next/link';
 import { HiEye, HiPencil, HiTrash, HiCurrencyRupee, HiX, HiSearch, HiFilter, HiChevronLeft, HiChevronRight, HiChevronDown, HiChevronUp } from 'react-icons/hi';
 
@@ -15,14 +16,12 @@ export default function Invoices() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const [invoices, setInvoices] = useState([]);
+  const { items: invoices, pagination, loading: loadingInvoices, fetchItems: fetchInvoices, invalidate: invalidateInvoices } = useInvoicesStore();
   const [customers, setCustomers] = useState([]);
-  const [loadingInvoices, setLoadingInvoices] = useState(true);
 
   // Pagination state
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
-  const [pagination, setPagination] = useState({});
 
   // Search and filter state
   const [search, setSearch] = useState('');
@@ -77,27 +76,21 @@ export default function Invoices() {
   };
 
   const loadInvoices = async () => {
-    setLoadingInvoices(true);
+    const params = {
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      ...(search && { search }),
+      ...Object.fromEntries(
+        Object.entries(filters).filter(([_, v]) => v !== '')
+      )
+    };
     try {
-      const params = {
-        page,
-        limit,
-        sortBy,
-        sortOrder,
-        ...(search && { search }),
-        ...Object.fromEntries(
-          Object.entries(filters).filter(([_, v]) => v !== '')
-        )
-      };
-
-      const data = await invoicesAPI.getAll(params);
-      setInvoices(data.invoices || data); // Handle both old and new response format
-      setPagination(data.pagination || {});
+      await fetchInvoices(params);
     } catch (error) {
       console.error('Error loading invoices:', error);
       toast.error('Failed to load invoices');
-    } finally {
-      setLoadingInvoices(false);
     }
   };
 
@@ -109,6 +102,7 @@ export default function Invoices() {
     try {
       await invoicesAPI.delete(invoiceId);
       toast.success('Invoice deleted successfully');
+      invalidateInvoices();
       loadInvoices();
     } catch (error) {
       toast.error(error.message || 'Failed to delete invoice');
@@ -187,6 +181,7 @@ export default function Invoices() {
       await invoicesAPI.addPayment(selectedInvoice._id, paymentData);
       toast.success('Payment recorded successfully');
       setShowQuickPaymentModal(false);
+      invalidateInvoices();
       loadInvoices();
     } catch (error) {
       toast.error(error.message || 'Failed to record payment');

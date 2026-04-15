@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { deliveryChallansAPI } from '@/utils/api';
+import { useDeliveryChallansStore } from '@/store/useDeliveryChallansStore';
 import Link from 'next/link';
 import {
     HiPlus, HiEye, HiPencil, HiTrash, HiSearch,
@@ -27,8 +28,7 @@ export default function DeliveryChallansPage() {
     const router = useRouter();
     const toast = useToast();
 
-    const [challans, setChallans] = useState([]);
-    const [loadingData, setLoadingData] = useState(true);
+    const { items: challans, loading: loadingData, fetchItems, invalidate } = useDeliveryChallansStore();
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -39,31 +39,17 @@ export default function DeliveryChallansPage() {
 
     useEffect(() => {
         if (!loading && !user) router.push('/login');
-        else if (user) loadData();
+        else if (user) fetchItems();
     }, [user, loading]);
 
-    // Reload data when page becomes visible
+    // Reload data when tab becomes visible — respects cache TTL
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (!document.hidden && user) {
-                loadData();
-            }
+            if (!document.hidden && user) fetchItems();
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [user]);
-
-    const loadData = async () => {
-        setLoadingData(true);
-        try {
-            const data = await deliveryChallansAPI.getAll();
-            setChallans(data);
-        } catch (error) {
-            toast.error(error.message || 'Failed to load delivery challans');
-        } finally {
-            setLoadingData(false);
-        }
-    };
 
     const filtered = challans.filter(c => {
         const s = search.toLowerCase();
@@ -84,7 +70,8 @@ export default function DeliveryChallansPage() {
             await deliveryChallansAPI.delete(deleteConfirm._id);
             toast.success('Delivery challan deleted');
             setDeleteConfirm(null);
-            loadData();
+            invalidate();
+            fetchItems(true);
         } catch (error) {
             toast.error(error.message || 'Failed to delete');
         } finally {

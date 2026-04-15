@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { quotationsAPI } from '@/utils/api';
+import { useQuotationsStore } from '@/store/useQuotationsStore';
 import Link from 'next/link';
 import {
   HiPlus, HiEye, HiPencil, HiTrash, HiSearch, HiChevronLeft, HiChevronRight,
@@ -28,8 +29,7 @@ export default function QuotationsPage() {
   const router = useRouter();
   const toast = useToast();
 
-  const [quotations, setQuotations] = useState([]);
-  const [loadingData, setLoadingData] = useState(true);
+  const { items: quotations, loading: loadingData, fetchItems, invalidate } = useQuotationsStore();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -40,31 +40,17 @@ export default function QuotationsPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
-    else if (user) loadData();
+    else if (user) fetchItems();
   }, [user, loading]);
 
-  // Reload data when component becomes visible (e.g., after navigating back from invoice page)
+  // Reload data when tab becomes visible — respects cache TTL
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden && user) {
-        loadData();
-      }
+      if (!document.hidden && user) fetchItems();
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [user]);
-
-  const loadData = async () => {
-    setLoadingData(true);
-    try {
-      const data = await quotationsAPI.getAll();
-      setQuotations(data);
-    } catch (error) {
-      toast.error(error.message || 'Failed to load quotations');
-    } finally {
-      setLoadingData(false);
-    }
-  };
 
   const filtered = quotations.filter(q => {
     const s = search.toLowerCase();
@@ -85,7 +71,8 @@ export default function QuotationsPage() {
       await quotationsAPI.delete(deleteConfirm._id);
       toast.success('Quotation deleted');
       setDeleteConfirm(null);
-      loadData();
+      invalidate();
+      fetchItems(true);
     } catch (error) {
       toast.error(error.message || 'Failed to delete quotation');
     } finally {

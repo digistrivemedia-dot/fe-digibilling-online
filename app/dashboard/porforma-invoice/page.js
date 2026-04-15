@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { proformaInvoicesAPI } from '@/utils/api';
+import { useProformaStore } from '@/store/useProformaStore';
 import Link from 'next/link';
 import {
     HiPlus, HiEye, HiPencil, HiTrash, HiSearch,
@@ -28,8 +29,7 @@ export default function ProformaInvoicesPage() {
     const router = useRouter();
     const toast = useToast();
 
-    const [proformas, setProformas] = useState([]);
-    const [loadingData, setLoadingData] = useState(true);
+    const { items: proformas, loading: loadingData, fetchItems, invalidate } = useProformaStore();
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -41,31 +41,17 @@ export default function ProformaInvoicesPage() {
 
     useEffect(() => {
         if (!loading && !user) router.push('/login');
-        else if (user) loadData();
+        else if (user) fetchItems();
     }, [user, loading]);
 
-    // Reload data when page becomes visible
+    // Reload data when tab becomes visible — respects cache TTL
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (!document.hidden && user) {
-                loadData();
-            }
+            if (!document.hidden && user) fetchItems();
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, [user]);
-
-    const loadData = async () => {
-        setLoadingData(true);
-        try {
-            const data = await proformaInvoicesAPI.getAll();
-            setProformas(data);
-        } catch (error) {
-            toast.error(error.message || 'Failed to load proforma invoices');
-        } finally {
-            setLoadingData(false);
-        }
-    };
 
     const filtered = proformas.filter(p => {
         const s = search.toLowerCase();
@@ -93,7 +79,8 @@ export default function ProformaInvoicesPage() {
             await proformaInvoicesAPI.delete(deleteConfirm._id);
             toast.success('Proforma invoice deleted');
             setDeleteConfirm(null);
-            loadData();
+            invalidate();
+            fetchItems(true);
         } catch (error) {
             toast.error(error.message || 'Failed to delete');
         } finally {

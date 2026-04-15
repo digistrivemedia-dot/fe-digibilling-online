@@ -1,41 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'; // useState kept for search
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
-import { salesReturnsAPI } from '@/utils/api';
+import { useSalesReturnsStore } from '@/store/useSalesReturnsStore';
 import { HiPlus, HiSearch, HiEye } from 'react-icons/hi';
 import Link from 'next/link';
 
 export default function SalesReturnsPage() {
   const router = useRouter();
   const toast = useToast();
-  const [salesReturns, setSalesReturns] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { items: salesReturns, stats, loading, fetchItems } = useSalesReturnsStore();
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    loadData();
+    fetchItems();
   }, []);
-
-  const loadData = async () => {
-    try {
-      const [returnsData, statsData] = await Promise.all([
-        salesReturnsAPI.getAll(),
-        salesReturnsAPI.getStats()
-      ]);
-      setSalesReturns(returnsData);
-      setStats(statsData);
-    } catch (error) {
-      console.error('Error loading sales returns:', error);
-      toast.error(error.message || 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filteredReturns = salesReturns.filter(ret =>
     ret.creditNoteNumber?.toLowerCase().includes(search.toLowerCase()) ||
