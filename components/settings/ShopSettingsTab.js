@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { shopAPI } from '@/utils/api';
+import { useShopStore } from '@/store/useShopStore';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import {
     HiOfficeBuilding, HiUser, HiPhone, HiMail, HiLocationMarker,
@@ -12,6 +13,7 @@ import {
 
 export default function ShopSettingsTab() {
     const toast = useToast();
+    const { shopSettings, fetchShopSettings, invalidate: invalidateShop } = useShopStore();
     const [formData, setFormData] = useState({
         shopName: '',
         ownerName: '',
@@ -33,33 +35,28 @@ export default function ShopSettingsTab() {
     const [uploadingLogo, setUploadingLogo] = useState(false);
 
     useEffect(() => {
-        loadSettings();
+        fetchShopSettings();
     }, []);
 
-    const loadSettings = async () => {
-        try {
-            const data = await shopAPI.get();
-            if (data) {
-                setFormData({
-                    shopName: data.shopName || '',
-                    ownerName: data.ownerName || '',
-                    address: data.address || '',
-                    city: data.city || '',
-                    state: data.state || '',
-                    pincode: data.pincode || '',
-                    phone: data.phone || '',
-                    email: data.email || '',
-                    gstin: data.gstin || '',
-                    defaultTaxType: data.defaultTaxType || 'CGST_SGST',
-                    gstScheme: data.gstScheme || 'REGULAR',
-                    logo: data.logo || '',
-                });
-                if (data.logo) setLogoPreview(data.logo);
-            }
-        } catch (error) {
-            console.error('Error loading settings:', error);
+    useEffect(() => {
+        if (shopSettings) {
+            setFormData({
+                shopName: shopSettings.shopName || '',
+                ownerName: shopSettings.ownerName || '',
+                address: shopSettings.address || '',
+                city: shopSettings.city || '',
+                state: shopSettings.state || '',
+                pincode: shopSettings.pincode || '',
+                phone: shopSettings.phone || '',
+                email: shopSettings.email || '',
+                gstin: shopSettings.gstin || '',
+                defaultTaxType: shopSettings.defaultTaxType || 'CGST_SGST',
+                gstScheme: shopSettings.gstScheme || 'REGULAR',
+                logo: shopSettings.logo || '',
+            });
+            if (shopSettings.logo) setLogoPreview(shopSettings.logo);
         }
-    };
+    }, [shopSettings]);
 
     const handleLogoChange = async (e) => {
         const file = e.target.files[0];
@@ -118,6 +115,7 @@ export default function ShopSettingsTab() {
         setMessage({ type: '', text: '' });
         try {
             await shopAPI.update(formData);
+            invalidateShop();
             if (formData.shopName) document.title = `${formData.shopName} - Billing Software`;
             setMessage({ type: 'success', text: 'Settings saved successfully!' });
             toast.success('Settings saved successfully!');

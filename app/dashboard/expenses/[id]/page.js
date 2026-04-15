@@ -6,15 +6,16 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import PageLoader from '@/components/PageLoader';
-import { expensesAPI, shopAPI } from '@/utils/api';
+import { expensesAPI } from '@/utils/api';
+import { useShopStore } from '@/store/useShopStore';
 
 export default function ExpenseDetail() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const toast = useToast();
   const params = useParams();
+  const { shopSettings, fetchShopSettings } = useShopStore();
   const [expense, setExpense] = useState(null);
-  const [shopSettings, setShopSettings] = useState(null);
   const [loadingExpense, setLoadingExpense] = useState(true);
 
   useEffect(() => {
@@ -22,7 +23,7 @@ export default function ExpenseDetail() {
       router.push('/login');
     } else if (user && params.id) {
       loadExpense();
-      loadShopSettings();
+      fetchShopSettings();
     }
   }, [user, loading, router, params.id]);
 
@@ -36,15 +37,6 @@ export default function ExpenseDetail() {
       router.push('/dashboard/expenses');
     } finally {
       setLoadingExpense(false);
-    }
-  };
-
-  const loadShopSettings = async () => {
-    try {
-      const data = await shopAPI.get();
-      setShopSettings(data);
-    } catch (error) {
-      console.error('Error loading shop settings:', error);
     }
   };
 
