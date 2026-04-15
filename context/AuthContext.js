@@ -1,43 +1,44 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/utils/api';
+import { useAuthStore } from '@/store/useAuthStore';
+import { resetAllStores } from '@/store/resetAllStores';
 
+// Context only carries the action functions (login/signup/logout).
+// State (user, loading) lives in useAuthStore so any component can
+// subscribe directly without Context propagation overhead.
 const AuthContext = createContext();
 
 export const useAuth = () => {
+  const { user, loading } = useAuthStore();
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within AuthProvider');
   }
-  return context;
+  return { user, loading, ...context };
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { _setUser, _setLoading, _clearUser } = useAuthStore();
   const router = useRouter();
 
+  // On mount: restore session from localStorage (client-side only)
   useEffect(() => {
-    const loadUserFromStorage = () => {
-      const token = localStorage.getItem('token');
-      const userData = localStorage.getItem('user');
-
-      if (token && userData) {
-        setUser(JSON.parse(userData));
-      }
-      setLoading(false);
-    };
-
-    loadUserFromStorage();
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    if (token && userData) {
+      _setUser(JSON.parse(userData));
+    }
+    _setLoading(false);
   }, []);
 
   const login = async (credentials) => {
     const data = await authAPI.login(credentials);
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data));
-    setUser(data);
+    _setUser(data);
     router.push('/dashboard');
   };
 
@@ -45,19 +46,20 @@ export const AuthProvider = ({ children }) => {
     const data = await authAPI.signup(userData);
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data));
-    setUser(data);
+    _setUser(data);
     router.push('/dashboard');
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    setUser(null);
+    _clearUser();
+    resetAllStores(); // clear all cached org data so next user starts fresh
     router.push('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, loading }}>
+    <AuthContext.Provider value={{ login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

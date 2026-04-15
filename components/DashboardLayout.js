@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { shopAPI } from '@/utils/api';
+import { useShopStore } from '@/store/useShopStore';
 import { APP_CONFIG } from '@/config/appConfig';
 import {
   HiHome,
@@ -87,10 +87,9 @@ export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [openGroups, setOpenGroups] = useState({});
-  const [shopSettings, setShopSettings] = useState(null);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { shopSettings, settled: settingsLoaded, fetchShopSettings, invalidate } = useShopStore();
 
   // Auto-open groups when navigating to a child route
   useEffect(() => {
@@ -107,21 +106,13 @@ export default function DashboardLayout({ children }) {
   }, [pathname]);
 
   useEffect(() => {
-    const loadShopSettings = async () => {
-      try {
-        const data = await shopAPI.get();
-        setShopSettings(data);
-      } catch (error) {
-        console.error('Error loading shop settings:', error);
-      } finally {
-        setSettingsLoaded(true);
-      }
-    };
-
-    loadShopSettings();
+    // Fetches from cache if still fresh; only hits the network when stale
+    fetchShopSettings();
 
     const handleSettingsUpdate = () => {
-      loadShopSettings();
+      // Settings were updated — invalidate cache and re-fetch immediately
+      invalidate();
+      fetchShopSettings(true);
     };
 
     window.addEventListener('shopSettingsUpdated', handleSettingsUpdate);

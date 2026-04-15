@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
-import { invoicesAPI, purchasesAPI, inventoryAPI, expensesAPI, suppliersAPI } from '@/utils/api';
+import { useDashboardStore } from '@/store/useDashboardStore';
 import Link from 'next/link';
 import {
   HiCurrencyRupee,
@@ -27,14 +27,7 @@ import {
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [stats, setStats] = useState({
-    invoices: null,
-    purchases: null,
-    inventory: null,
-    expenses: null,
-    suppliers: null
-  });
-  const [loadingStats, setLoadingStats] = useState(true);
+  const { stats, loading: loadingStats, fetchStats } = useDashboardStore();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -44,33 +37,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user) {
-      loadStats();
+      fetchStats();
     }
   }, [user]);
-
-  const loadStats = async () => {
-    try {
-      const [invoicesData, purchasesData, inventoryData, expensesData, suppliersData] = await Promise.all([
-        invoicesAPI.getStats().catch(() => null),
-        purchasesAPI.getStats().catch(() => null),
-        inventoryAPI.getStats().catch(() => null),
-        expensesAPI.getStats().catch(() => null),
-        suppliersAPI.getStats().catch(() => null)
-      ]);
-
-      setStats({
-        invoices: invoicesData,
-        purchases: purchasesData,
-        inventory: inventoryData,
-        expenses: expensesData,
-        suppliers: suppliersData
-      });
-    } catch (error) {
-      console.error('Error loading stats:', error);
-    } finally {
-      setLoadingStats(false);
-    }
-  };
 
   if (loading || !user) {
     return null;
