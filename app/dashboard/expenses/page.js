@@ -3,19 +3,20 @@
 import { useToast } from '@/context/ToastContext';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { expensesAPI } from '@/utils/api';
+import { useExpensesStore } from '@/store/useExpensesStore';
 import { HiPlus, HiSearch, HiPencil, HiTrash } from 'react-icons/hi';
 import Link from 'next/link';
 
 export default function ExpensesPage() {
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const [expenses, setExpenses] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { items: expenses, stats, loading, fetchItems, invalidate } = useExpensesStore();
   const [search, setSearch] = useState('');
-  const [stats, setStats] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
 
   const categories = [
@@ -26,35 +27,30 @@ export default function ExpensesPage() {
   ];
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const [expensesData, statsData] = await Promise.all([
-        expensesAPI.getAll(),
-        expensesAPI.getStats()
-      ]);
-      setExpenses(expensesData);
-      setStats(statsData);
-    } catch (error) {
-      console.error('Error loading expenses:', error);
-      toast.error(error.message || 'An error occurred');
-    } finally {
-      setLoading(false);
+    if (!authLoading && !user) {
+      router.push('/login');
+    } else if (user) {
+      fetchItems().catch(err => {
+        console.error('Error loading expenses:', err);
+        toast.error(err.message || 'An error occurred');
+      });
     }
-  };
+  }, [user, authLoading]);
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this expense?')) return;
 
     try {
       await expensesAPI.delete(id);
-      loadData();
+      toast.success('Expense deleted successfully!');
+      invalidate();
+      fetchItems(true).catch(err => console.error('Error reloading expenses:', err));
     } catch (error) {
       toast.error(error.message || 'An error occurred');
     }
   };
+
+  if (authLoading || !user) return null;
 
   const filteredExpenses = expenses.filter(expense => {
     const matchesSearch =

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
-import { productsAPI } from '@/utils/api';
+import { useProductsStore } from '@/store/useProductsStore';
 import {
     HiAdjustments,
     HiPlus,
@@ -97,8 +97,7 @@ export default function StockAdjustments() {
     const router = useRouter();
     const toast = useToast();
 
-    const [products, setProducts] = useState([]);
-    const [loadingProducts, setLoadingProducts] = useState(true);
+    const { items: products, loading: loadingProducts, fetchItems: fetchProducts } = useProductsStore();
     const [showModal, setShowModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [history, setHistory] = useState(MOCK_HISTORY);
@@ -120,20 +119,9 @@ export default function StockAdjustments() {
         if (!loading && !user) {
             router.push('/login');
         } else if (user) {
-            loadProducts();
+            fetchProducts().catch(err => console.error('Error loading products:', err));
         }
     }, [user, loading, router]);
-
-    const loadProducts = async () => {
-        try {
-            const data = await productsAPI.getAllWithBatches({});
-            setProducts(data.products || data); // Handle both old and new response format
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoadingProducts(false);
-        }
-    };
 
     const selectedType = ADJUSTMENT_TYPES.find((t) => t.value === form.type);
     const selectedProduct = products.find((p) => p._id === form.productId);

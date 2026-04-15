@@ -5,12 +5,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { expensesAPI } from '@/utils/api';
+import { useExpensesStore } from '@/store/useExpensesStore';
 import { HiArrowLeft, HiExclamation } from 'react-icons/hi';
 import Link from 'next/link';
 
 export default function NewExpensePage() {
   const router = useRouter();
   const toast = useToast();
+  const { invalidate: invalidateExpenses } = useExpensesStore();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
@@ -105,6 +107,7 @@ export default function NewExpensePage() {
     try {
       await expensesAPI.create(formData);
       toast.success('Expense added successfully!');
+      invalidateExpenses();
       router.push('/dashboard/expenses');
     } catch (error) {
       // Parse backend validation errors

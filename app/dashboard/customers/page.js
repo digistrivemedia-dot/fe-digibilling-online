@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { customersAPI } from '@/utils/api';
+import { useCustomersStore } from '@/store/useCustomersStore';
 import {
   HiPlus,
   HiSearch,
@@ -26,8 +27,7 @@ export default function Customers() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const [customers, setCustomers] = useState([]);
-  const [loadingCustomers, setLoadingCustomers] = useState(true);
+  const { items: customers, loading: loadingCustomers, fetchItems, invalidate } = useCustomersStore();
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,20 +52,9 @@ export default function Customers() {
     if (!loading && !user) {
       router.push('/login');
     } else if (user) {
-      loadCustomers();
+      fetchItems().catch(err => console.error('Error loading customers:', err));
     }
   }, [user, loading, router]);
-
-  const loadCustomers = async () => {
-    try {
-      const data = await customersAPI.getAll({ search: searchTerm });
-      setCustomers(data);
-    } catch (error) {
-      console.error('Error loading customers:', error);
-    } finally {
-      setLoadingCustomers(false);
-    }
-  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -103,7 +92,8 @@ export default function Customers() {
       }
       setShowModal(false);
       resetForm();
-      loadCustomers();
+      invalidate();
+      fetchItems(true).catch(err => console.error('Error reloading customers:', err));
     } catch (error) {
       toast.error(error.message || 'An error occurred');
     }
@@ -141,7 +131,8 @@ export default function Customers() {
       toast.success('Customer deleted successfully!');
       setShowDeleteConfirm(false);
       setCustomerToDelete(null);
-      loadCustomers();
+      invalidate();
+      fetchItems(true).catch(err => console.error('Error reloading customers:', err));
     } catch (error) {
       toast.error(error.message || 'Failed to delete customer');
     }
@@ -169,6 +160,15 @@ export default function Customers() {
   };
 
   if (loading || !user) return null;
+
+  const filteredCustomers = searchTerm.trim()
+    ? customers.filter(c =>
+        c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.gstin?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : customers;
 
   return (
     <DashboardLayout>
@@ -209,7 +209,6 @@ export default function Customers() {
                 placeholder="Search customers by name, phone, email, or GSTIN..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyUp={() => loadCustomers()}
                 className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-black"
               />
             </div>
@@ -246,7 +245,7 @@ export default function Customers() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
-                {customers.length === 0 ? (
+                {filteredCustomers.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center justify-center">
@@ -259,7 +258,7 @@ export default function Customers() {
                     </td>
                   </tr>
                 ) : (
-                  customers.map((customer) => (
+                  filteredCustomers.map((customer) => (
                     <tr key={customer._id} className="hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-pink-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center">

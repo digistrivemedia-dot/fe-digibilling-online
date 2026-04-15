@@ -1,9 +1,13 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import PageLoader from '@/components/PageLoader';
 import { inventoryAPI } from '@/utils/api';
+import { useInventoryStore } from '@/store/useInventoryStore';
 import {
   HiSearch, HiExclamationCircle, HiClock, HiBan,
   HiChevronLeft, HiChevronRight, HiTrendingUp, HiCalendar,
@@ -12,14 +16,15 @@ import {
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 export default function InventoryPage() {
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const toast = useToast();
+  const {
+    stats, lowStockItems, nearExpiryBatches, expiredBatches, allBatches,
+    loading, fetchItems,
+  } = useInventoryStore();
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
-  const [allBatches, setAllBatches] = useState([]);
-  const [lowStockItems, setLowStockItems] = useState([]);
-  const [nearExpiryBatches, setNearExpiryBatches] = useState([]);
-  const [expiredBatches, setExpiredBatches] = useState([]);
-  const [stats, setStats] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -32,7 +37,16 @@ export default function InventoryPage() {
   const [sortBy, setSortBy] = useState('quantity'); // 'quantity', 'orders', 'revenue'
   const [sortOrder, setSortOrder] = useState('desc'); // 'asc', 'desc'
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    } else if (user) {
+      fetchItems().catch(err => {
+        console.error('Error loading inventory:', err);
+        toast.error('Failed to load inventory');
+      });
+    }
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (activeTab === 'top-selling') {
@@ -42,27 +56,6 @@ export default function InventoryPage() {
 
   // Reset to page 1 on tab / search / pageSize change
   useEffect(() => { setCurrentPage(1); }, [activeTab, search, pageSize]);
-
-  const loadData = async () => {
-    try {
-      const [statsData, lowStock, nearExpiry, expired, allBatchesData] = await Promise.all([
-        inventoryAPI.getStats(),
-        inventoryAPI.getLowStock(),
-        inventoryAPI.getNearExpiry({ months: 3 }),
-        inventoryAPI.getExpired(),
-        inventoryAPI.getAllBatches(),
-      ]);
-      setStats(statsData);
-      setLowStockItems(lowStock);
-      setNearExpiryBatches(nearExpiry);
-      setExpiredBatches(expired);
-      setAllBatches(allBatchesData);
-    } catch (error) {
-      console.error('Error loading inventory:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadTopSelling = async () => {
     setLoadingTopSelling(true);
@@ -203,7 +196,8 @@ export default function InventoryPage() {
     return { color: 'text-green-600 bg-green-50', label: `${daysToExpiry} days` };
   };
 
-  if (loading) return <PageLoader text="Loading inventory..." />;
+  if (authLoading || !user) return null;
+  if (loading && !stats) return <PageLoader text="Loading inventory..." />;
 
   return (
     <DashboardLayout>

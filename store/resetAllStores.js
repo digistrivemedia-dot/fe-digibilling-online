@@ -13,6 +13,9 @@ import { useServicesStore } from './useServicesStore';
 import { usePurchasesStore } from './usePurchasesStore';
 import { useSuppliersStore } from './useSuppliersStore';
 import { usePurchaseReturnsStore } from './usePurchaseReturnsStore';
+import { useInventoryStore } from './useInventoryStore';
+import { useCustomersStore } from './useCustomersStore';
+import { useExpensesStore } from './useExpensesStore';
 
 export const resetAllStores = () => {
   useShopStore.getState().reset();
@@ -28,4 +31,7 @@ export const resetAllStores = () => {
   usePurchasesStore.getState().reset();
   useSuppliersStore.getState().reset();
   usePurchaseReturnsStore.getState().reset();
+  useInventoryStore.getState().reset();
+  useCustomersStore.getState().reset();
+  useExpensesStore.getState().reset();
 };
