@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { purchasesAPI, suppliersAPI, productsAPI } from '@/utils/api';
+import { usePurchasesStore } from '@/store/usePurchasesStore';
 import { calculatePurchaseTotals, calculateItemTotal as calcItemTotal, validateDiscount } from '@/utils/calculations';
 import { HiArrowLeft, HiPlus, HiTrash, HiExclamation } from 'react-icons/hi';
 import Link from 'next/link';
@@ -13,6 +14,7 @@ import Link from 'next/link';
 export default function NewPurchasePage() {
   const router = useRouter();
   const toast = useToast();
+  const { invalidate: invalidatePurchases } = usePurchasesStore();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [suppliers, setSuppliers] = useState([]);
@@ -401,6 +403,7 @@ export default function NewPurchasePage() {
 
       await purchasesAPI.create(purchaseData);
       toast.success('Purchase entry added successfully!');
+      invalidatePurchases();
       router.push('/dashboard/purchases');
     } catch (error) {
       // Parse backend validation errors and show user-friendly messages

@@ -3,39 +3,31 @@
 import { useToast } from '@/context/ToastContext';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { suppliersAPI } from '@/utils/api';
+import { useSuppliersStore } from '@/store/useSuppliersStore';
 import { HiPlus, HiSearch, HiPencil, HiTrash } from 'react-icons/hi';
 import Link from 'next/link';
 
 export default function SuppliersPage() {
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const [suppliers, setSuppliers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { items: suppliers, stats, loading, fetchItems, invalidate } = useSuppliersStore();
   const [search, setSearch] = useState('');
-  const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const [suppliersData, statsData] = await Promise.all([
-        suppliersAPI.getAll(),
-        suppliersAPI.getStats()
-      ]);
-      setSuppliers(suppliersData);
-      setStats(statsData);
-    } catch (error) {
-      console.error('Error loading suppliers:', error);
-      toast.error(error.message || 'An error occurred');
-    } finally {
-      setLoading(false);
+    if (!authLoading && !user) {
+      router.push('/login');
+    } else if (user) {
+      fetchItems().catch(err => {
+        console.error('Error loading suppliers:', err);
+        toast.error(err.message || 'Failed to load suppliers');
+      });
     }
-  };
+  }, [user, authLoading]);
 
   const filteredSuppliers = suppliers.filter(supplier =>
     supplier.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -48,7 +40,9 @@ export default function SuppliersPage() {
 
     try {
       await suppliersAPI.delete(id);
-      loadData();
+      toast.success('Supplier deleted successfully');
+      invalidate();
+      fetchItems(true).catch(err => console.error('Reload error:', err));
     } catch (error) {
       toast.error(error.message || 'An error occurred');
     }

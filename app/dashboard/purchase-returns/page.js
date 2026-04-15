@@ -3,39 +3,30 @@
 import { useToast } from '@/context/ToastContext';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
-import { purchaseReturnsAPI } from '@/utils/api';
+import { usePurchaseReturnsStore } from '@/store/usePurchaseReturnsStore';
 import { HiPlus, HiSearch, HiEye } from 'react-icons/hi';
 import Link from 'next/link';
 
 export default function PurchaseReturnsPage() {
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const [purchaseReturns, setPurchaseReturns] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { items: purchaseReturns, stats, loading, fetchItems } = usePurchaseReturnsStore();
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const [returnsData, statsData] = await Promise.all([
-        purchaseReturnsAPI.getAll(),
-        purchaseReturnsAPI.getStats()
-      ]);
-      setPurchaseReturns(returnsData);
-      setStats(statsData);
-    } catch (error) {
-      console.error('Error loading purchase returns:', error);
-      toast.error(error.message || 'An error occurred');
-    } finally {
-      setLoading(false);
+    if (!authLoading && !user) {
+      router.push('/login');
+    } else if (user) {
+      fetchItems().catch(err => {
+        console.error('Error loading purchase returns:', err);
+        toast.error(err.message || 'Failed to load purchase returns');
+      });
     }
-  };
+  }, [user, authLoading]);
 
   const filteredReturns = purchaseReturns.filter(ret =>
     ret.debitNoteNumber?.toLowerCase().includes(search.toLowerCase()) ||

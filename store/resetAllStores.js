@@ -10,6 +10,9 @@ import { useProformaStore } from './useProformaStore';
 import { useDeliveryChallansStore } from './useDeliveryChallansStore';
 import { useProductsStore } from './useProductsStore';
 import { useServicesStore } from './useServicesStore';
+import { usePurchasesStore } from './usePurchasesStore';
+import { useSuppliersStore } from './useSuppliersStore';
+import { usePurchaseReturnsStore } from './usePurchaseReturnsStore';
 
 export const resetAllStores = () => {
   useShopStore.getState().reset();
@@ -22,4 +25,7 @@ export const resetAllStores = () => {
   useDeliveryChallansStore.getState().reset();
   useProductsStore.getState().reset();
   useServicesStore.getState().reset();
+  usePurchasesStore.getState().reset();
+  useSuppliersStore.getState().reset();
+  usePurchaseReturnsStore.getState().reset();
 };

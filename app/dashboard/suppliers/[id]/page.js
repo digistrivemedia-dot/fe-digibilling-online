@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { suppliersAPI } from '@/utils/api';
+import { useSuppliersStore } from '@/store/useSuppliersStore';
 import { HiArrowLeft, HiExclamation } from 'react-icons/hi';
 import Link from 'next/link';
 import PageLoader from '@/components/PageLoader';
@@ -13,6 +14,7 @@ export default function EditSupplierPage() {
   const router = useRouter();
   const params = useParams();
   const toast = useToast();
+  const { invalidate: invalidateSuppliers } = useSuppliersStore();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -130,6 +132,7 @@ export default function EditSupplierPage() {
     try {
       await suppliersAPI.update(params.id, formData);
       toast.success('Supplier updated successfully!');
+      invalidateSuppliers();
       router.push('/dashboard/suppliers');
     } catch (error) {
       toast.error(error.message || 'An error occurred');

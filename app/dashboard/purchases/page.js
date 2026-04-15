@@ -3,19 +3,20 @@
 import { useToast } from '@/context/ToastContext';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TableSkeleton } from '@/components/SkeletonLoader';
 import { purchasesAPI } from '@/utils/api';
+import { usePurchasesStore } from '@/store/usePurchasesStore';
 import { HiPlus, HiSearch, HiEye, HiCurrencyRupee, HiPencil, HiX, HiTrash } from 'react-icons/hi';
 import Link from 'next/link';
 
 export default function PurchasesPage() {
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const [purchases, setPurchases] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { items: purchases, stats, loading, fetchItems, invalidate } = usePurchasesStore();
   const [search, setSearch] = useState('');
-  const [stats, setStats] = useState(null);
 
   // Quick payment modal states
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -35,24 +36,15 @@ export default function PurchasesPage() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const [purchasesData, statsData] = await Promise.all([
-        purchasesAPI.getAll(),
-        purchasesAPI.getStats()
-      ]);
-      setPurchases(purchasesData);
-      setStats(statsData);
-    } catch (error) {
-      console.error('Error loading purchases:', error);
-      toast.error(error.message || 'An error occurred');
-    } finally {
-      setLoading(false);
+    if (!authLoading && !user) {
+      router.push('/login');
+    } else if (user) {
+      fetchItems().catch(err => {
+        console.error('Error loading purchases:', err);
+        toast.error(err.message || 'Failed to load purchases');
+      });
     }
-  };
+  }, [user, authLoading]);
 
   const filteredPurchases = purchases.filter(purchase =>
     purchase.purchaseNumber?.toLowerCase().includes(search.toLowerCase()) ||
@@ -97,7 +89,8 @@ export default function PurchasesPage() {
       await purchasesAPI.addPayment(selectedPurchase._id, paymentData);
       toast.success('Payment recorded successfully!');
       setShowPaymentModal(false);
-      loadData(); // Reload purchases to show updated payment status
+      invalidate();
+      fetchItems(true).catch(err => console.error('Reload error:', err));
     } catch (error) {
       console.error('Payment error:', error);
       toast.error(error.message || 'An error occurred');
@@ -120,7 +113,8 @@ export default function PurchasesPage() {
       toast.success('Purchase and associated products deleted successfully!');
       setShowDeleteModal(false);
       setPurchaseToDelete(null);
-      loadData(); // Reload purchases list
+      invalidate();
+      fetchItems(true).catch(err => console.error('Reload error:', err));
     } catch (error) {
       console.error('Delete error:', error);
       toast.error(error.message || 'Failed to delete purchase');

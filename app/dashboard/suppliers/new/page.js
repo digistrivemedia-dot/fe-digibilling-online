@@ -5,11 +5,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { suppliersAPI } from '@/utils/api';
+import { useSuppliersStore } from '@/store/useSuppliersStore';
 import { HiArrowLeft, HiExclamation } from 'react-icons/hi';
 import Link from 'next/link';
 
 export default function NewSupplierPage() {
   const router = useRouter();
+  const { invalidate: invalidateSuppliers } = useSuppliersStore();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -79,6 +81,7 @@ export default function NewSupplierPage() {
     try {
       await suppliersAPI.create(formData);
       toast.success('Supplier added successfully!');
+      invalidateSuppliers();
       router.push('/dashboard/suppliers');
     } catch (error) {
       toast.error(error.message || 'An error occurred');
