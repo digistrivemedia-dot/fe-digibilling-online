@@ -8,11 +8,13 @@ import DashboardLayout from '@/components/DashboardLayout';
 import PageLoader from '@/components/PageLoader';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, proformaInvoicesAPI, shopAPI } from '@/utils/api';
+import { useProformaStore } from '@/store/useProformaStore';
 import { calculateInvoiceTotals, calculateItemWithDiscount } from '@/utils/calculations';
 import { HiPlus, HiSearch, HiX, HiExclamation } from 'react-icons/hi';
 
 export default function EditProformaInvoice() {
     const { user, loading: authLoading } = useAuth();
+    const { invalidate: invalidateProforma } = useProformaStore();
     const router = useRouter();
     const params = useParams();
     const toast = useToast();
@@ -199,6 +201,7 @@ export default function EditProformaInvoice() {
                 destination: additionalDetails.destination,
             });
             toast.success('Proforma invoice updated!');
+            invalidateProforma();
             router.push(`/dashboard/porforma-invoice/${params.id}`);
         } catch (e) { toast.error(e.message || 'Failed to update'); }
         finally { setSubmitting(false); }

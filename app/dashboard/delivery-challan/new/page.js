@@ -7,12 +7,14 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, deliveryChallansAPI, shopAPI, servicesAPI } from '@/utils/api';
+import { useDeliveryChallansStore } from '@/store/useDeliveryChallansStore';
 import { calculateInvoiceTotals, calculateItemWithDiscount } from '@/utils/calculations';
 import { HiPlus, HiSearch, HiX, HiExclamation, HiCube, HiLightningBolt } from 'react-icons/hi';
 
 export default function NewDeliveryChallan() {
     const { user, loading } = useAuth();
     const router = useRouter();
+    const { invalidate: invalidateChallans } = useDeliveryChallansStore();
     const toast = useToast();
 
     const [products, setProducts] = useState([]);
@@ -219,6 +221,7 @@ export default function NewDeliveryChallan() {
                 destination: additionalDetails.destination || undefined,
             });
             toast.success('Delivery challan created!');
+            invalidateChallans();
             router.push(`/dashboard/delivery-challan/${challan._id}`);
         } catch (e) { toast.error(e.message || 'Failed to create'); }
         finally { setSubmitting(false); }

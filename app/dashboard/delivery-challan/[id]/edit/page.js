@@ -8,11 +8,13 @@ import DashboardLayout from '@/components/DashboardLayout';
 import PageLoader from '@/components/PageLoader';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, deliveryChallansAPI } from '@/utils/api';
+import { useDeliveryChallansStore } from '@/store/useDeliveryChallansStore';
 import { HiPlus, HiSearch, HiX, HiExclamation } from 'react-icons/hi';
 
 export default function EditDeliveryChallan() {
     const { user, loading: authLoading } = useAuth();
     const router = useRouter();
+    const { invalidate: invalidateChallans } = useDeliveryChallansStore();
     const params = useParams();
     const toast = useToast();
 
@@ -144,6 +146,7 @@ export default function EditDeliveryChallan() {
                 deliveryAddress, notes, status, items,
             });
             toast.success('Delivery challan updated!');
+            invalidateChallans();
             router.push(`/dashboard/delivery-challan/${params.id}`);
         } catch (e) { toast.error(e.message || 'Failed to update'); }
         finally { setSubmitting(false); }

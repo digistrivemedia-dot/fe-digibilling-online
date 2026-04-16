@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, invoicesAPI, shopAPI, servicesAPI, quotationsAPI, proformaInvoicesAPI, deliveryChallansAPI } from '@/utils/api';
+import { useInvoicesStore } from '@/store/useInvoicesStore';
 import { calculateInvoiceTotals, calculateItemWithDiscount, calculateItemDisplayTotal, validateDiscount, validateInvoiceTotals } from '@/utils/calculations';
 import { HiPlus, HiSearch, HiX, HiExclamation, HiLightningBolt, HiCube } from 'react-icons/hi';
 
@@ -14,6 +15,7 @@ function NewInvoiceContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { invalidate: invalidateInvoices } = useInvoicesStore();
   const toast = useToast();
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
@@ -755,6 +757,7 @@ function NewInvoiceContent() {
         toast.success('Invoice created successfully!');
       }
 
+      invalidateInvoices();
       router.push(`/dashboard/invoices/${invoice._id}`);
     } catch (error) {
       // Show user-friendly error messages

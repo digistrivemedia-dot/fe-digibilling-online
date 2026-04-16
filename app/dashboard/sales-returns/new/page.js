@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { salesReturnsAPI, invoicesAPI } from '@/utils/api';
+import { useSalesReturnsStore } from '@/store/useSalesReturnsStore';
 import { calculateInvoiceTotals } from '@/utils/calculations';
 import { HiArrowLeft, HiPlus, HiTrash } from 'react-icons/hi';
 import Link from 'next/link';
@@ -12,6 +13,7 @@ import Link from 'next/link';
 export default function NewSalesReturnPage() {
   const router = useRouter();
   const toast = useToast();
+  const { invalidate: invalidateSalesReturns } = useSalesReturnsStore();
   const [loading, setLoading] = useState(false);
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -184,6 +186,7 @@ export default function NewSalesReturnPage() {
 
       await salesReturnsAPI.create(returnData);
       toast.success('Sales return created successfully!');
+      invalidateSalesReturns();
       router.push('/dashboard/sales-returns');
     } catch (error) {
       console.error('Sales return error:', error);

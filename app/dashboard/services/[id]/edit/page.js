@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { servicesAPI } from '@/utils/api';
+import { useServicesStore } from '@/store/useServicesStore';
 import {
     HiLightningBolt,
     HiExclamation,
@@ -21,6 +22,7 @@ export default function EditService() {
     const { user, loading } = useAuth();
     const router = useRouter();
     const { id } = useParams();
+    const { invalidate: invalidateServices } = useServicesStore();
     const toast = useToast();
 
     const [loadingService, setLoadingService] = useState(true);
@@ -83,6 +85,7 @@ export default function EditService() {
         try {
             await servicesAPI.update(id, formData);
             toast.success('Service updated successfully!');
+            invalidateServices();
             router.push('/dashboard/services');
         } catch (error) {
             toast.error(error.message || 'Failed to update service');

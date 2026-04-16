@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, quotationsAPI, shopAPI, servicesAPI } from '@/utils/api';
+import { useQuotationsStore } from '@/store/useQuotationsStore';
 import { calculateInvoiceTotals, calculateItemWithDiscount } from '@/utils/calculations';
 import {
   HiPlus, HiSearch, HiX, HiExclamation,
@@ -18,6 +19,7 @@ export default function NewQuotation() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const toast = useToast();
+  const { invalidate: invalidateQuotations } = useQuotationsStore();
 
   // ── Data ───────────────────────────────────────────────────────────────
   const [products, setProducts] = useState([]);
@@ -256,6 +258,7 @@ export default function NewQuotation() {
       };
       const q = await quotationsAPI.create(data);
       toast.success('Quotation created!');
+      invalidateQuotations();
       router.push(`/dashboard/quotation/${q._id}`);
     } catch (err) { toast.error(err.message || 'Failed to create quotation'); }
     finally { setSubmitting(false); }

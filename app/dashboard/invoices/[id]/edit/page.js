@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, invoicesAPI, shopAPI } from '@/utils/api';
+import { useInvoicesStore } from '@/store/useInvoicesStore';
 import { calculateInvoiceTotals, calculateItemWithDiscount, calculateItemDisplayTotal, validateDiscount, validateInvoiceTotals } from '@/utils/calculations';
 import { HiPlus, HiSearch, HiX, HiExclamation, HiExclamationCircle } from 'react-icons/hi';
 
@@ -14,6 +15,7 @@ export default function EditInvoice() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const params = useParams();
+  const { invalidate: invalidateInvoices } = useInvoicesStore();
   const toast = useToast();
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -379,6 +381,7 @@ export default function EditInvoice() {
         response.warnings.forEach(warning => toast.warning(warning));
       }
 
+      invalidateInvoices();
       router.push(`/dashboard/invoices/${params.id}`);
     } catch (error) {
       // Show user-friendly error messages

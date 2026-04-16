@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, proformaInvoicesAPI, shopAPI, servicesAPI } from '@/utils/api';
+import { useProformaStore } from '@/store/useProformaStore';
 import { calculateInvoiceTotals, calculateItemWithDiscount } from '@/utils/calculations';
 import {
     HiPlus, HiSearch, HiX, HiExclamation,
@@ -18,6 +19,7 @@ export default function NewProformaInvoice() {
     const { user, loading } = useAuth();
     const router = useRouter();
     const toast = useToast();
+    const { invalidate: invalidateProforma } = useProformaStore();
 
     // ── Data ───────────────────────────────────────────────────────────────
     const [products, setProducts] = useState([]);
@@ -252,6 +254,7 @@ export default function NewProformaInvoice() {
             console.log('Data being sent to API:', JSON.stringify(data, null, 2));
             const pf = await proformaInvoicesAPI.create(data);
             toast.success('Proforma invoice created!');
+            invalidateProforma();
             router.push(`/dashboard/porforma-invoice/${pf._id}`);
         } catch (err) { toast.error(err.message || 'Failed to create proforma invoice'); }
         finally { setSubmitting(false); }

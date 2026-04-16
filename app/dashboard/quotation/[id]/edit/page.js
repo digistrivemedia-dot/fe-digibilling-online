@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import PageLoader from '@/components/PageLoader';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, quotationsAPI, shopAPI } from '@/utils/api';
+import { useQuotationsStore } from '@/store/useQuotationsStore';
 import { calculateInvoiceTotals, calculateItemWithDiscount } from '@/utils/calculations';
 import {
   HiPlus, HiSearch, HiX, HiExclamation,
@@ -18,6 +19,7 @@ export default function EditQuotation() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const params = useParams();
+  const { invalidate: invalidateQuotations } = useQuotationsStore();
   const toast = useToast();
 
   // ── Data ──────────────────────────────────────────────────────────────────
@@ -271,6 +273,7 @@ export default function EditQuotation() {
         terms,
       });
       toast.success('Quotation updated!');
+      invalidateQuotations();
       router.push(`/dashboard/quotation/${params.id}`);
     } catch (error) {
       toast.error(error.message || 'Failed to update quotation');
