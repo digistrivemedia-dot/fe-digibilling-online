@@ -7,6 +7,7 @@ import {
   validateDiscount,
   validateInvoiceTotals,
   formatCurrency,
+  buildHsnSummary,
 } from '@/utils/calculations';
 
 // ─── calculateInvoiceTotals ───────────────────────────────────────────────────
@@ -105,6 +106,53 @@ describe('calculateInvoiceTotals', () => {
     const result = calculateInvoiceTotals(items, 0, 'CGST_SGST', 0, null);
 
     expect(result.finalTotal).toBe(Math.round(result.grandTotal));
+  });
+
+  // ── Frontend ↔ Backend Consistency ───────────────────────────────────────────
+  // This is the fix the user made: the invoice FORM preview and the stored invoice
+  // (detail page + PDF) were showing different numbers because create and edit used
+  // different calculation paths. Both now call calculateInvoiceTotals, which must
+  // produce exactly the same grandTotal that the backend computes and stores.
+  //
+  // Backend formula (gstCalculations.js → calculateItemGST + calculateTotals):
+  //   subtotalAfterDiscount = subtotal - discount
+  //   discountRatio = subtotalAfterDiscount / subtotal
+  //   totalTax = sum(item.totalTax * discountRatio)   ← proportional
+  //   grandTotal = Math.round(subtotalAfterDiscount + totalTax)
+  //
+  // Frontend formula (calculateInvoiceTotals):
+  //   itemAfterDiscount = itemTotal * discountRatio
+  //   totalTax = sum(itemAfterDiscount * gstRate / 100)  ← same math
+  //   finalTotal = Math.round(grandTotal)
+  //
+  // If these ever diverge, the form preview will show the wrong number.
+
+  it('form preview finalTotal matches backend-stored grandTotal — no discount', () => {
+    // Backend stores Math.round(1000 + 180) = 1180
+    const result = calculateInvoiceTotals(
+      [{ quantity: 1, sellingPrice: 1000, gstRate: 18, cessRate: 0 }],
+      0, 'CGST_SGST', 0, null
+    );
+    expect(result.finalTotal).toBe(1180);
+  });
+
+  it('form preview finalTotal matches backend-stored grandTotal — invoice-level discount', () => {
+    // Backend: subtotal=1000, discount=100, base=900, tax=900*18%=162, grandTotal=Math.round(1062)=1062
+    const result = calculateInvoiceTotals(
+      [{ quantity: 2, sellingPrice: 500, gstRate: 18, cessRate: 0 }],
+      100, 'CGST_SGST', 0, null
+    );
+    expect(result.finalTotal).toBe(1062);
+  });
+
+  it('form preview finalTotal matches backend-stored grandTotal — item-level discount', () => {
+    // Backend calculateItemGST: taxableAmount = 1000 - 100 = 900, tax = 162, totalAmount = 1062
+    // calculateTotals: grandTotal = Math.round(900 + 162) = 1062
+    const result = calculateInvoiceTotals(
+      [{ quantity: 2, sellingPrice: 500, gstRate: 18, cessRate: 0, discountAmount: 100 }],
+      0, 'CGST_SGST', 0, null
+    );
+    expect(result.finalTotal).toBe(1062);
   });
 });
 
@@ -236,5 +284,120 @@ describe('calculateItemWithDiscount', () => {
     const result = calculateItemWithDiscount(item, { gstScheme: 'COMPOSITION' });
 
     expect(result.taxAmount).toBe(0);
+  });
+});
+
+// ─── buildHsnSummary ──────────────────────────────────────────────────────────
+// This function is used by the PDF invoice templates (TallyPortraitTemplate,
+// TallyLandscapeTemplate) to render the HSN/SAC tax summary table.
+// It reads from stored invoice.items (taxableAmount and totalAmount come from
+// the backend's calculateItemGST — so this is the function that ties the PDF
+// output to the backend calculation). If it reads the wrong fields or calculates
+// the wrong split, the PDF tax table shows different numbers than the invoice total.
+
+describe('buildHsnSummary', () => {
+  // Helper: simulate a DB-stored invoice item (fields set by backend calculateItemGST)
+  const storedItem = ({ hsnCode = undefined, sacCode = undefined, gstRate, taxableAmount, totalAmount }) => ({
+    hsnCode,
+    sacCode,
+    gstRate,
+    taxableAmount,   // post-discount base — what GST was applied on
+    totalAmount,     // taxableAmount + tax
+    sellingPrice: 1000,
+    quantity: 1,
+    discountAmount: 0,
+  });
+
+  it('single item CGST_SGST — taxableValue, cgst, sgst are correct', () => {
+    // ₹1000 taxable, 18% GST → tax = ₹180, totalAmount = ₹1180
+    const items = [storedItem({ hsnCode: '1001', gstRate: 18, taxableAmount: 1000, totalAmount: 1180 })];
+    const rows = buildHsnSummary(items, 'CGST_SGST');
+
+    expect(rows).toHaveLength(1);
+    const [key, data] = rows[0];
+    expect(key).toBe('1001');
+    expect(data.taxableValue).toBeCloseTo(1000, 2);
+    expect(data.cgst).toBeCloseTo(90, 2);   // 180 / 2
+    expect(data.sgst).toBeCloseTo(90, 2);
+    expect(data.igst).toBe(0);
+  });
+
+  it('single item IGST — full tax goes into igst, cgst and sgst are zero', () => {
+    const items = [storedItem({ hsnCode: '1001', gstRate: 18, taxableAmount: 1000, totalAmount: 1180 })];
+    const rows = buildHsnSummary(items, 'IGST');
+
+    const [, data] = rows[0];
+    expect(data.igst).toBeCloseTo(180, 2);
+    expect(data.cgst).toBe(0);
+    expect(data.sgst).toBe(0);
+  });
+
+  it('two items with the same HSN code are merged into one row', () => {
+    // Both items have HSN '1001' — should aggregate into a single entry
+    const items = [
+      storedItem({ hsnCode: '1001', gstRate: 18, taxableAmount: 1000, totalAmount: 1180 }), // tax=180
+      storedItem({ hsnCode: '1001', gstRate: 18, taxableAmount: 500,  totalAmount: 590  }), // tax=90
+    ];
+    const rows = buildHsnSummary(items, 'CGST_SGST');
+
+    expect(rows).toHaveLength(1);
+    const [key, data] = rows[0];
+    expect(key).toBe('1001');
+    expect(data.taxableValue).toBeCloseTo(1500, 2);
+    expect(data.cgst).toBeCloseTo(135, 2);  // (180+90) / 2
+    expect(data.sgst).toBeCloseTo(135, 2);
+  });
+
+  it('two items with different HSN codes produce two separate rows', () => {
+    const items = [
+      storedItem({ hsnCode: '1001', gstRate: 18, taxableAmount: 1000, totalAmount: 1180 }),
+      storedItem({ hsnCode: '2002', gstRate: 5,  taxableAmount: 1000, totalAmount: 1050 }),
+    ];
+    const rows = buildHsnSummary(items, 'CGST_SGST');
+
+    expect(rows).toHaveLength(2);
+    const keys = rows.map(([k]) => k);
+    expect(keys).toContain('1001');
+    expect(keys).toContain('2002');
+  });
+
+  it('item with sacCode (service) uses sacCode as the key', () => {
+    // Services use sacCode, not hsnCode
+    const items = [storedItem({ sacCode: '998311', gstRate: 18, taxableAmount: 1000, totalAmount: 1180 })];
+    const rows = buildHsnSummary(items, 'CGST_SGST');
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0][0]).toBe('998311');
+  });
+
+  it('item with no hsnCode and no sacCode falls back to N/A', () => {
+    const items = [storedItem({ gstRate: 18, taxableAmount: 1000, totalAmount: 1180 })];
+    const rows = buildHsnSummary(items, 'CGST_SGST');
+
+    expect(rows[0][0]).toBe('N/A');
+  });
+
+  it('empty items array returns empty rows', () => {
+    const rows = buildHsnSummary([], 'CGST_SGST');
+    expect(rows).toHaveLength(0);
+  });
+
+  it('item without taxableAmount falls back to sellingPrice × quantity − discount', () => {
+    // Simulates an older invoice item that did not have taxableAmount stored
+    const item = {
+      hsnCode: '1001',
+      gstRate: 18,
+      taxableAmount: undefined, // missing
+      totalAmount: 1180,
+      sellingPrice: 1000,
+      quantity: 1,
+      discountAmount: 0,
+    };
+    const rows = buildHsnSummary([item], 'CGST_SGST');
+
+    // Fallback: sellingPrice(1000) * quantity(1) - discount(0) = 1000
+    const [, data] = rows[0];
+    expect(data.taxableValue).toBeCloseTo(1000, 2);
+    expect(data.cgst).toBeCloseTo(90, 2);
   });
 });
