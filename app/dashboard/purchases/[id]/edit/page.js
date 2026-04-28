@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import PageLoader from '@/components/PageLoader';
 import { purchasesAPI, suppliersAPI, productsAPI } from '@/utils/api';
 import { usePurchasesStore } from '@/store/usePurchasesStore';
+import { useProductsStore } from '@/store/useProductsStore';
 import { calculatePurchaseTotals, calculateItemTotal as calcItemTotal, validateDiscount } from '@/utils/calculations';
 import { HiArrowLeft, HiExclamation } from 'react-icons/hi';
 import Link from 'next/link';
@@ -15,6 +16,7 @@ export default function EditPurchasePage() {
   const router = useRouter();
   const params = useParams();
   const { invalidate: invalidatePurchases } = usePurchasesStore();
+  const { invalidate: invalidateProducts } = useProductsStore();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -253,6 +255,7 @@ export default function EditPurchasePage() {
       await purchasesAPI.update(params.id, purchaseData);
       toast.success('Purchase updated successfully!');
       invalidatePurchases();
+      invalidateProducts(); // purchase edit changed batch quantities
       router.push(`/dashboard/purchases/${params.id}`);
     } catch (error) {
       // Parse backend validation errors and show user-friendly messages

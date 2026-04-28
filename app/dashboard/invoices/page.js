@@ -9,6 +9,7 @@ import { TableSkeleton } from '@/components/SkeletonLoader';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { invoicesAPI, customersAPI } from '@/utils/api';
 import { useInvoicesStore } from '@/store/useInvoicesStore';
+import { useProductsStore } from '@/store/useProductsStore';
 import Link from 'next/link';
 import { HiEye, HiPencil, HiTrash, HiCurrencyRupee, HiX, HiSearch, HiFilter, HiChevronLeft, HiChevronRight, HiChevronDown, HiChevronUp } from 'react-icons/hi';
 
@@ -17,6 +18,7 @@ export default function Invoices() {
   const router = useRouter();
   const toast = useToast();
   const { items: invoices, pagination, loading: loadingInvoices, fetchItems: fetchInvoices, invalidate: invalidateInvoices } = useInvoicesStore();
+  const { invalidate: invalidateProducts } = useProductsStore();
   const [customers, setCustomers] = useState([]);
 
   // Pagination state
@@ -103,6 +105,7 @@ export default function Invoices() {
       await invoicesAPI.delete(invoiceId);
       toast.success('Invoice deleted successfully');
       invalidateInvoices();
+      invalidateProducts(); // stock restored on delete
       loadInvoices();
     } catch (error) {
       toast.error(error.message || 'Failed to delete invoice');

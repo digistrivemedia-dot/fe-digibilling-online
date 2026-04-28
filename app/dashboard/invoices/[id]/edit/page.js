@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import Modal from '@/components/Modal';
 import { productsAPI, customersAPI, invoicesAPI, shopAPI } from '@/utils/api';
 import { useInvoicesStore } from '@/store/useInvoicesStore';
+import { useProductsStore } from '@/store/useProductsStore';
 import { calculateInvoiceTotals, calculateItemWithDiscount, calculateItemDisplayTotal, validateDiscount, validateInvoiceTotals } from '@/utils/calculations';
 import { HiPlus, HiSearch, HiX, HiExclamation, HiExclamationCircle } from 'react-icons/hi';
 
@@ -16,6 +17,7 @@ export default function EditInvoice() {
   const router = useRouter();
   const params = useParams();
   const { invalidate: invalidateInvoices } = useInvoicesStore();
+  const { invalidate: invalidateProducts } = useProductsStore();
   const toast = useToast();
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -382,6 +384,7 @@ export default function EditInvoice() {
       }
 
       invalidateInvoices();
+      invalidateProducts(); // stock changed — force product dropdown to refetch on next open
       router.push(`/dashboard/invoices/${params.id}`);
     } catch (error) {
       // Show user-friendly error messages

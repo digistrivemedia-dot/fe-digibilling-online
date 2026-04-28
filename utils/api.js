@@ -97,6 +97,7 @@ export const productsAPI = {
   delete: (id) => apiCall(`/products/${id}`, {
     method: 'DELETE',
   }),
+  syncStock: () => apiCall('/products/sync-stock', { method: 'POST' }),
 };
 
 export const customersAPI = {
@@ -310,6 +311,11 @@ export const inventoryAPI = {
     const query = new URLSearchParams(params).toString();
     return apiCall(`/inventory/top-selling?${query}`);
   },
+  getAdjustments: () => apiCall('/inventory/adjustments'),
+  createAdjustment: (data) => apiCall('/inventory/adjustments', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
 };
 
 // Reports API

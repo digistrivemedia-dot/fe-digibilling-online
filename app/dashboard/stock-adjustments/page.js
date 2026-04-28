@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useProductsStore } from '@/store/useProductsStore';
+import { inventoryAPI } from '@/utils/api';
 import {
     HiAdjustments,
     HiPlus,
@@ -89,18 +90,16 @@ const colorMap = {
     purple: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300', icon: 'text-purple-600', badge: 'bg-purple-100 text-purple-700' },
 };
 
-// Mock local history (replace with API when backend is ready)
-const MOCK_HISTORY = [];
-
 export default function StockAdjustments() {
     const { user, loading } = useAuth();
     const router = useRouter();
     const toast = useToast();
 
-    const { items: products, loading: loadingProducts, fetchItems: fetchProducts } = useProductsStore();
+    const { items: products, loading: loadingProducts, fetchItems: fetchProducts, invalidate: invalidateProducts } = useProductsStore();
     const [showModal, setShowModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [history, setHistory] = useState(MOCK_HISTORY);
+    const [history, setHistory] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(true);
 
     // Form state
     const [form, setForm] = useState({
@@ -120,8 +119,21 @@ export default function StockAdjustments() {
             router.push('/login');
         } else if (user) {
             fetchProducts().catch(err => console.error('Error loading products:', err));
+            loadHistory();
         }
     }, [user, loading, router]);
+
+    const loadHistory = async () => {
+        setLoadingHistory(true);
+        try {
+            const data = await inventoryAPI.getAdjustments();
+            setHistory(data);
+        } catch (err) {
+            console.error('Error loading adjustment history:', err);
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
 
     const selectedType = ADJUSTMENT_TYPES.find((t) => t.value === form.type);
     const selectedProduct = products.find((p) => p._id === form.productId);
@@ -143,22 +155,17 @@ export default function StockAdjustments() {
 
         setSubmitting(true);
         try {
-            // TODO: Call stockAdjustmentsAPI.create(form) when backend is ready
-            const selectedBatch = availableBatches.find((b) => b._id === form.batchId);
-            const entry = {
-                id: Date.now(),
+            const adjustment = await inventoryAPI.createAdjustment({
+                productId: form.productId,
+                batchId: form.batchId || undefined,
                 type: form.type,
-                typeDef: selectedType,
-                productName: selectedProduct?.name,
-                batchNo: selectedBatch?.batchNo || 'N/A',
                 quantity: parseFloat(form.quantity),
-                unit: selectedProduct?.unit || 'PCS',
                 date: form.date,
                 reason: form.reason,
                 notes: form.notes,
-                createdAt: new Date().toISOString(),
-            };
-            setHistory((prev) => [entry, ...prev]);
+            });
+            setHistory((prev) => [adjustment, ...prev]);
+            invalidateProducts(); // stock has changed
             toast.success('Stock adjustment recorded successfully!');
             resetForm();
             setShowModal(false);
@@ -184,9 +191,11 @@ export default function StockAdjustments() {
 
     const filteredHistory = history.filter((h) =>
         !searchTerm ||
-        h.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        h.typeDef?.label?.toLowerCase().includes(searchTerm.toLowerCase())
+        h.product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        h.type?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const typeDef = (type) => ADJUSTMENT_TYPES.find((t) => t.value === type);
 
     if (loading || !user) return null;
 
@@ -247,7 +256,11 @@ export default function StockAdjustments() {
                         </div>
                     </div>
 
-                    {filteredHistory.length === 0 ? (
+                    {loadingHistory ? (
+                        <div className="flex items-center justify-center py-16 text-gray-400">
+                            <p className="text-sm">Loading history...</p>
+                        </div>
+                    ) : filteredHistory.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-gray-400">
                             <div className="p-4 bg-gray-100 rounded-full mb-4">
                                 <HiAdjustments className="w-10 h-10 text-gray-300" />
@@ -269,23 +282,24 @@ export default function StockAdjustments() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {filteredHistory.map((h) => {
-                                        const c = colorMap[h.typeDef?.color || 'blue'];
+                                        const t = typeDef(h.type);
+                                        const c = colorMap[t?.color || 'blue'];
                                         return (
-                                            <tr key={h.id} className="hover:bg-gray-50 transition-colors">
+                                            <tr key={h._id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-5 py-3 text-sm text-gray-600">
                                                     {new Date(h.date).toLocaleDateString('en-IN')}
                                                 </td>
                                                 <td className="px-5 py-3">
                                                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${c.badge}`}>
-                                                        {h.typeDef?.label}
+                                                        {t?.label || h.type}
                                                     </span>
                                                 </td>
-                                                <td className="px-5 py-3 text-sm font-medium text-gray-900">{h.productName}</td>
-                                                <td className="px-5 py-3 text-sm text-gray-500">{h.batchNo}</td>
+                                                <td className="px-5 py-3 text-sm font-medium text-gray-900">{h.product?.name}</td>
+                                                <td className="px-5 py-3 text-sm text-gray-500">{h.batch?.batchNo || 'N/A'}</td>
                                                 <td className="px-5 py-3 text-sm font-semibold text-gray-900">
-                                                    <span className={h.typeDef?.direction === 'in' ? 'text-green-600' : h.typeDef?.direction === 'out' ? 'text-red-600' : 'text-gray-700'}>
-                                                        {h.typeDef?.direction === 'in' ? '+' : h.typeDef?.direction === 'out' ? '-' : ''}
-                                                        {h.quantity} {h.unit}
+                                                    <span className={h.direction === 'in' ? 'text-green-600' : h.direction === 'out' ? 'text-red-600' : 'text-gray-700'}>
+                                                        {h.direction === 'in' ? '+' : h.direction === 'out' ? '-' : ''}
+                                                        {h.quantity} {h.product?.unit || ''}
                                                     </span>
                                                 </td>
                                                 <td className="px-5 py-3 text-sm text-gray-500">{h.reason || '—'}</td>
@@ -365,7 +379,7 @@ export default function StockAdjustments() {
                                     >
                                         <option value="">Select product</option>
                                         {products.map((p) => (
-                                            <option key={p._id} value={p._id}>{p.name}</option>
+                                            <option key={p._id} value={p._id}>{p.name} ({p.stockQuantity ?? 0} {p.unit})</option>
                                         ))}
                                     </select>
                                     {errors.productId && <p className="text-sm text-red-500 mt-1">{errors.productId}</p>}
@@ -374,7 +388,7 @@ export default function StockAdjustments() {
                                 {/* Batch (optional) */}
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Batch <span className="text-xs text-gray-400">(Optional)</span>
+                                        Batch <span className="text-xs text-gray-400">(Optional — uses FIFO if blank)</span>
                                     </label>
                                     <select
                                         value={form.batchId}
@@ -382,7 +396,7 @@ export default function StockAdjustments() {
                                         disabled={!form.productId || availableBatches.length === 0}
                                         className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-400"
                                     >
-                                        <option value="">All batches</option>
+                                        <option value="">All batches (auto)</option>
                                         {availableBatches.map((b) => (
                                             <option key={b._id} value={b._id}>
                                                 {b.batchNo || 'Auto'} — {b.quantity} {selectedProduct?.unit}

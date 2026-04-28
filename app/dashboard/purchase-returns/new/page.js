@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { purchaseReturnsAPI, purchasesAPI } from '@/utils/api';
 import { usePurchaseReturnsStore } from '@/store/usePurchaseReturnsStore';
+import { useProductsStore } from '@/store/useProductsStore';
 import { calculatePurchaseTotals } from '@/utils/calculations';
 import { HiArrowLeft, HiPlus, HiTrash } from 'react-icons/hi';
 import Link from 'next/link';
@@ -14,6 +15,7 @@ export default function NewPurchaseReturnPage() {
   const router = useRouter();
   const toast = useToast();
   const { invalidate: invalidatePurchaseReturns } = usePurchaseReturnsStore();
+  const { invalidate: invalidateProducts } = useProductsStore();
   const [loading, setLoading] = useState(false);
   const [purchases, setPurchases] = useState([]);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
@@ -156,6 +158,7 @@ export default function NewPurchaseReturnPage() {
       await purchaseReturnsAPI.create(returnData);
       toast.success('Purchase return created successfully!');
       invalidatePurchaseReturns();
+      invalidateProducts(); // purchase return reduces stock
       router.push('/dashboard/purchase-returns');
     } catch (error) {
       toast.error(error.message || 'An error occurred');

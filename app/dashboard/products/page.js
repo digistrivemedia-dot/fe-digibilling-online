@@ -204,10 +204,10 @@ export default function Products() {
         const submitData = {
           ...formData,
           expiryDate: formData.batchExpiryDate || undefined,
-          mrp: formData.mrp && formData.mrp !== '' ? parseFloat(formData.mrp) : undefined,
-          sellingPrice: formData.sellingPrice && formData.sellingPrice !== '' ? parseFloat(formData.sellingPrice) : undefined,
-          purchasePrice: formData.purchasePrice && formData.purchasePrice !== '' ? parseFloat(formData.purchasePrice) : undefined,
-          stockQuantity: formData.stockQuantity && formData.stockQuantity !== '' ? parseFloat(formData.stockQuantity) : undefined,
+          mrp: formData.mrp !== '' ? parseFloat(formData.mrp) : undefined,
+          sellingPrice: formData.sellingPrice !== '' ? parseFloat(formData.sellingPrice) : undefined,
+          purchasePrice: formData.purchasePrice !== '' ? parseFloat(formData.purchasePrice) : undefined,
+          stockQuantity: formData.stockQuantity !== '' ? parseFloat(formData.stockQuantity) : undefined,
         };
         delete submitData.batchExpiryDate;
         await productsAPI.create(submitData);
@@ -327,16 +327,34 @@ export default function Products() {
               </div>
             </div>
           </div>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/50 hover:shadow-xl transition-all duration-200"
-          >
-            <HiPlus className="w-5 h-5 mr-2" />
-            Add Product
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={async () => {
+                try {
+                  const result = await productsAPI.syncStock();
+                  toast.success(result.message);
+                  invalidateProducts();
+                  loadProducts();
+                } catch (err) {
+                  toast.error(err.message || 'Sync failed');
+                }
+              }}
+              className="flex items-center px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all duration-200"
+              title="Recalculate all product stock quantities from actual batch totals"
+            >
+              Sync Stock
+            </button>
+            <button
+              onClick={() => {
+                resetForm();
+                setShowModal(true);
+              }}
+              className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/50 hover:shadow-xl transition-all duration-200"
+            >
+              <HiPlus className="w-5 h-5 mr-2" />
+              Add Product
+            </button>
+          </div>
         </div>
 
         {/* Search and Filters */}
@@ -817,8 +835,8 @@ export default function Products() {
                       type="text"
                       value={formData.name}
                       onChange={(e) => {
-                        setFormData({ ...formData, name: e.target.value });
-                        if (errors.name) setErrors({ ...errors, name: '' });
+                        setFormData(prev => ({ ...prev, name: e.target.value }));
+                        if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
                       }}
                       className={`w-full px-4 py-3 border rounded-xl focus:ring-2 transition-all ${errors.name
                         ? 'border-red-500 focus:ring-red-500 bg-red-50'
@@ -838,7 +856,7 @@ export default function Products() {
                     <label className="block text-sm font-semibold text-gray-700">Item Status</label>
                     <select
                       value={formData.itemStatus}
-                      onChange={(e) => setFormData({ ...formData, itemStatus: e.target.value })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, itemStatus: e.target.value }))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     >
                       <option value="TRADING">Trading Item</option>
@@ -857,7 +875,7 @@ export default function Products() {
                     <input
                       type="text"
                       value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="e.g. Electronics, Clothing, Food..."
                     />
@@ -867,7 +885,7 @@ export default function Products() {
                     <input
                       type="text"
                       value={formData.hsnCode}
-                      onChange={(e) => setFormData({ ...formData, hsnCode: e.target.value })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, hsnCode: e.target.value }))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="Enter HSN code"
                     />
@@ -878,7 +896,7 @@ export default function Products() {
                     <label className="block text-sm font-semibold text-gray-700">GST Rate (%)</label>
                     <select
                       value={formData.gstRate}
-                      onChange={(e) => setFormData({ ...formData, gstRate: Number(e.target.value) })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, gstRate: Number(e.target.value) }))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     >
                       <option value={0}>0%</option>
@@ -899,7 +917,7 @@ export default function Products() {
                       type="number"
                       step="0.01"
                       value={formData.mrp}
-                      onChange={(e) => setFormData({ ...formData, mrp: e.target.value })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, mrp: e.target.value }))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="0.00"
                     />
@@ -915,8 +933,8 @@ export default function Products() {
                       step="0.01"
                       value={formData.sellingPrice}
                       onChange={(e) => {
-                        setFormData({ ...formData, sellingPrice: e.target.value });
-                        if (errors.sellingPrice) setErrors({ ...errors, sellingPrice: '' });
+                        setFormData(prev => ({ ...prev, sellingPrice: e.target.value }));
+                        if (errors.sellingPrice) setErrors(prev => ({ ...prev, sellingPrice: '' }));
                       }}
                       className={`w-full px-4 py-3 border rounded-xl focus:ring-2 transition-all ${errors.sellingPrice
                         ? 'border-red-500 focus:ring-red-500 bg-red-50'
@@ -938,7 +956,7 @@ export default function Products() {
                       type="number"
                       step="0.01"
                       value={formData.purchasePrice}
-                      onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, purchasePrice: e.target.value }))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="0.00"
                     />
@@ -951,7 +969,7 @@ export default function Products() {
                     <label className="block text-sm font-semibold text-gray-700">Unit</label>
                     <select
                       value={formData.unit}
-                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                      onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     >
                       {['ANN', 'BAG', 'BAL', 'BDL', 'BKL', 'BOTTLE', 'BOU', 'BOX', 'BTL', 'BUN', 'CAN', 'CBM', 'CCM', 'CMS', 'CTN', 'DAY', 'DAYS', 'DOZ', 'DRM', 'GGK', 'GM', 'GMS', 'GRS', 'GYD', 'HRS', 'JOB', 'KG', 'KGS', 'KLR', 'KME', 'LITRE', 'LTR', 'ML', 'MLT', 'MON', 'MONTHS', 'MTR', 'NOS', 'OTH', 'PAC', 'PCS', 'PKT', 'PRS', 'QTL', 'ROL', 'SET', 'SQF', 'SQM', 'SQY', 'STRIP', 'TBS', 'TGM', 'THD', 'TON', 'TUB', 'UGS', 'UNT', 'YDS'].map(u => (
@@ -989,7 +1007,7 @@ export default function Products() {
                       {/* Slider toggle */}
                       <button
                         type="button"
-                        onClick={() => setFormData({ ...formData, trackInventory: !formData.trackInventory })}
+                        onClick={() => setFormData(prev => ({ ...prev, trackInventory: !prev.trackInventory }))}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${formData.trackInventory ? 'bg-green-500' : 'bg-orange-400'
                           }`}
                       >
@@ -1008,7 +1026,7 @@ export default function Products() {
                       <input
                         type="number"
                         value={formData.stockQuantity}
-                        onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
+                        onChange={(e) => setFormData(prev => ({ ...prev, stockQuantity: e.target.value }))}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                         placeholder="0"
                       />
@@ -1035,7 +1053,7 @@ export default function Products() {
                       <input
                         type="text"
                         value={formData.batchNo}
-                        onChange={(e) => setFormData({ ...formData, batchNo: e.target.value })}
+                        onChange={(e) => setFormData(prev => ({ ...prev, batchNo: e.target.value }))}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                         placeholder="Auto-generated if left empty"
                       />
@@ -1049,7 +1067,7 @@ export default function Products() {
                       <input
                         type="date"
                         value={formData.batchExpiryDate}
-                        onChange={(e) => setFormData({ ...formData, batchExpiryDate: e.target.value })}
+                        onChange={(e) => setFormData(prev => ({ ...prev, batchExpiryDate: e.target.value }))}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       />
                     </div>
@@ -1062,7 +1080,7 @@ export default function Products() {
                       <input
                         type="date"
                         value={formData.manufactureDate}
-                        onChange={(e) => setFormData({ ...formData, manufactureDate: e.target.value })}
+                        onChange={(e) => setFormData(prev => ({ ...prev, manufactureDate: e.target.value }))}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       />
                     </div>
@@ -1130,7 +1148,7 @@ export default function Products() {
                                 toAdd.push(val);
                               }
 
-                              setFormData({ ...formData, serialNumbers: [...existing, ...toAdd] });
+                              setFormData(prev => ({ ...prev, serialNumbers: [...prev.serialNumbers, ...toAdd] }));
                               setSerialInput('');
 
                               if (toAdd.length > 0) toast.success(`${toAdd.length} number${toAdd.length > 1 ? 's' : ''} added`);
@@ -1154,10 +1172,10 @@ export default function Products() {
                               {sn}
                               <button
                                 type="button"
-                                onClick={() => setFormData({
-                                  ...formData,
-                                  serialNumbers: formData.serialNumbers.filter((_, i) => i !== idx)
-                                })}
+                                onClick={() => setFormData(prev => ({
+                                  ...prev,
+                                  serialNumbers: prev.serialNumbers.filter((_, i) => i !== idx)
+                                }))}
                                 className="w-4 h-4 flex items-center justify-center rounded-full bg-blue-100 hover:bg-red-100 text-blue-500 hover:text-red-500 transition-colors"
                               >
                                 <HiX className="w-2.5 h-2.5" />
@@ -1166,7 +1184,7 @@ export default function Products() {
                           ))}
                           <button
                             type="button"
-                            onClick={() => setFormData({ ...formData, serialNumbers: [] })}
+                            onClick={() => setFormData(prev => ({ ...prev, serialNumbers: [] }))}
                             className="text-xs text-red-400 hover:text-red-600 underline ml-auto self-center"
                           >
                             Clear all
