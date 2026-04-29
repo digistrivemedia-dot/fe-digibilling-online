@@ -642,6 +642,15 @@ function NewInvoiceContent() {
       return;
     }
 
+    // Validation: Serial number products must have a serial selected
+    const missingSerialIndex = invoiceItems.findIndex(
+      item => item.hasSerial && !item.serialNumber
+    );
+    if (missingSerialIndex !== -1) {
+      toast.error(`Please select a serial number for item #${missingSerialIndex + 1}`);
+      return;
+    }
+
     // Validation: Check if discount is valid
     const totals = calculateTotals();
     const discountValidation = validateDiscount(discount, totals.subtotal);
