@@ -825,6 +825,17 @@ function NewInvoiceContent() {
           <p className="mt-1 text-sm text-gray-600">Generate a new invoice for your customer</p>
         </div>
 
+        {/* BUG-019: Warn if shop state not set — GST type (CGST/SGST vs IGST) depends on it */}
+        {shopSettings && !shopSettings.state && (
+          <div className="flex items-start gap-3 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-sm text-amber-800">
+            <HiExclamation className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
+            <span>
+              <strong>Shop state not configured.</strong> GST type (CGST/SGST vs IGST) cannot be determined automatically — invoices may use the wrong tax split.{' '}
+              <a href="/dashboard/settings" className="underline font-medium hover:text-amber-900">Update shop settings</a> to fix this.
+            </span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6 text-black">
           {/* ── Customer Details ─────────────────────────────────── */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-black">
