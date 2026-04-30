@@ -168,6 +168,13 @@ function NewInvoiceContent() {
       toast.info('Loading quotation data...');
       const quotation = await quotationsAPI.getOne(quotationId);
 
+      // Block if this quotation was already converted to an invoice
+      if (quotation.convertedToInvoiceId) {
+        toast.error('This quotation has already been converted to an invoice.');
+        router.push(`/dashboard/invoices/${quotation.convertedToInvoiceId}`);
+        return;
+      }
+
       // Store quotation ID for later update
       setFromQuotationId(quotationId);
 
@@ -251,6 +258,13 @@ function NewInvoiceContent() {
       toast.info('Loading proforma invoice data...');
       const proforma = await proformaInvoicesAPI.getOne(proformaId);
 
+      // Block if this proforma was already converted to an invoice
+      if (proforma.convertedToInvoiceId) {
+        toast.error('This proforma invoice has already been converted to an invoice.');
+        router.push(`/dashboard/invoices/${proforma.convertedToInvoiceId}`);
+        return;
+      }
+
       // Store proforma ID for later update
       setFromProformaId(proformaId);
 
@@ -333,6 +347,13 @@ function NewInvoiceContent() {
     try {
       toast.info('Loading delivery challan data...');
       const challan = await deliveryChallansAPI.getOne(challanId);
+
+      // Block if this challan was already converted to an invoice
+      if (challan.convertedToInvoiceId) {
+        toast.error('This delivery challan has already been converted to an invoice.');
+        router.push(`/dashboard/invoices/${challan.convertedToInvoiceId}`);
+        return;
+      }
 
       // Store challan ID for later update
       setFromChallanId(challanId);
