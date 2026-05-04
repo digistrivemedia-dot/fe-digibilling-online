@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import DashboardLayout from '@/components/DashboardLayout';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { useShopStore } from '@/store/useShopStore';
 import { HiCog, HiOfficeBuilding, HiDocument, HiCollection } from 'react-icons/hi';
 
 import ShopSettingsTab from '@/components/settings/ShopSettingsTab';
@@ -22,12 +24,19 @@ const TABS = [
 
 export default function Settings() {
   const { user, loading } = useAuth();
+  const { loading: settingsLoading, settled, fetchShopSettings } = useShopStore();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('shop');
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (user) {
+      fetchShopSettings();
+    }
+  }, [user, fetchShopSettings]);
 
   if (loading || !user) return null;
 
@@ -48,6 +57,12 @@ export default function Settings() {
           </div>
         </div>
 
+        {!settled && settingsLoading ? (
+          <div className="rounded-2xl border border-gray-200 bg-white px-8 py-20 shadow-sm">
+            <LoadingSpinner size="lg" text="Loading settings..." />
+          </div>
+        ) : (
+          <>
         {/* Tab Bar */}
         <div className="flex overflow-x-auto border-b border-gray-200 mb-6">
           {TABS.map(({ id, label, icon: Icon }) => (
@@ -71,6 +86,8 @@ export default function Settings() {
         {/* {activeTab === 'proforma' && <ProformaSettingsTab />} */}
         {/* {activeTab === 'quotation' && <QuotationSettingsTab />} */}
         {activeTab === 'business' && <BusinessTypeTab />}
+          </>
+        )}
 
       </div>
     </DashboardLayout>

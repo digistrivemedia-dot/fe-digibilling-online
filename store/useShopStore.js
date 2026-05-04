@@ -28,6 +28,17 @@ export const useShopStore = create((set, get) => ({
   // Call after updating settings so next access re-fetches
   invalidate: () => set({ lastFetched: null }),
 
+  updateShopSettings: async (payload) => {
+    const data = await shopAPI.update(payload);
+    set({
+      shopSettings: data,
+      lastFetched: Date.now(),
+      loading: false,
+      settled: true,
+    });
+    return data;
+  },
+
   // Full reset on logout (clears cached data for the org)
   reset: () => set({ shopSettings: null, loading: false, lastFetched: null, settled: false }),
 }));

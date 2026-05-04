@@ -89,7 +89,7 @@ export default function DashboardLayout({ children }) {
   const [openGroups, setOpenGroups] = useState({});
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const { shopSettings, settled: settingsLoaded, fetchShopSettings, invalidate } = useShopStore();
+  const { shopSettings, settled: settingsLoaded, fetchShopSettings } = useShopStore();
 
   // Auto-open groups when navigating to a child route
   useEffect(() => {
@@ -108,18 +108,7 @@ export default function DashboardLayout({ children }) {
   useEffect(() => {
     // Fetches from cache if still fresh; only hits the network when stale
     fetchShopSettings();
-
-    const handleSettingsUpdate = () => {
-      // Settings were updated — invalidate cache and re-fetch immediately
-      invalidate();
-      fetchShopSettings(true);
-    };
-
-    window.addEventListener('shopSettingsUpdated', handleSettingsUpdate);
-    return () => {
-      window.removeEventListener('shopSettingsUpdated', handleSettingsUpdate);
-    };
-  }, []);
+  }, [fetchShopSettings]);
 
   const shopName = shopSettings?.shopName || APP_CONFIG.shopName;
   const logoSrc = shopSettings?.logo || '/Logo.jpeg';

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useToast } from '@/context/ToastContext';
-import { shopAPI } from '@/utils/api';
 import { useShopStore } from '@/store/useShopStore';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import {
@@ -11,51 +10,34 @@ import {
     HiCheckCircle, HiExclamationCircle,
 } from 'react-icons/hi';
 
+const getShopFormState = (shopSettings) => ({
+    shopName: shopSettings?.shopName || '',
+    ownerName: shopSettings?.ownerName || '',
+    address: shopSettings?.address || '',
+    city: shopSettings?.city || '',
+    state: shopSettings?.state || '',
+    pincode: shopSettings?.pincode || '',
+    phone: shopSettings?.phone || '',
+    email: shopSettings?.email || '',
+    gstin: shopSettings?.gstin || '',
+    defaultTaxType: shopSettings?.defaultTaxType || 'CGST_SGST',
+    gstScheme: shopSettings?.gstScheme || 'REGULAR',
+    logo: shopSettings?.logo || '',
+});
+
 export default function ShopSettingsTab() {
     const toast = useToast();
-    const { shopSettings, fetchShopSettings, invalidate: invalidateShop } = useShopStore();
-    const [formData, setFormData] = useState({
-        shopName: '',
-        ownerName: '',
-        address: '',
-        city: '',
-        state: '',
-        pincode: '',
-        phone: '',
-        email: '',
-        gstin: '',
-        defaultTaxType: 'CGST_SGST',
-        gstScheme: 'REGULAR',
-        logo: '',
-    });
+    const { shopSettings, updateShopSettings } = useShopStore();
+    const [formData, setFormData] = useState(() => getShopFormState(shopSettings));
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
     const [errors, setErrors] = useState({});
-    const [logoPreview, setLogoPreview] = useState(null);
+    const [logoPreview, setLogoPreview] = useState(shopSettings?.logo || null);
     const [uploadingLogo, setUploadingLogo] = useState(false);
 
     useEffect(() => {
-        fetchShopSettings();
-    }, []);
-
-    useEffect(() => {
-        if (shopSettings) {
-            setFormData({
-                shopName: shopSettings.shopName || '',
-                ownerName: shopSettings.ownerName || '',
-                address: shopSettings.address || '',
-                city: shopSettings.city || '',
-                state: shopSettings.state || '',
-                pincode: shopSettings.pincode || '',
-                phone: shopSettings.phone || '',
-                email: shopSettings.email || '',
-                gstin: shopSettings.gstin || '',
-                defaultTaxType: shopSettings.defaultTaxType || 'CGST_SGST',
-                gstScheme: shopSettings.gstScheme || 'REGULAR',
-                logo: shopSettings.logo || '',
-            });
-            if (shopSettings.logo) setLogoPreview(shopSettings.logo);
-        }
+        setFormData(getShopFormState(shopSettings));
+        setLogoPreview(shopSettings?.logo || null);
     }, [shopSettings]);
 
     const handleLogoChange = async (e) => {
@@ -114,12 +96,10 @@ export default function ShopSettingsTab() {
         setSaving(true);
         setMessage({ type: '', text: '' });
         try {
-            await shopAPI.update(formData);
-            invalidateShop();
+            await updateShopSettings(formData);
             if (formData.shopName) document.title = `${formData.shopName} - Billing Software`;
             setMessage({ type: 'success', text: 'Settings saved successfully!' });
             toast.success('Settings saved successfully!');
-            window.dispatchEvent(new CustomEvent('shopSettingsUpdated'));
             setTimeout(() => setMessage({ type: '', text: '' }), 3000);
         } catch (error) {
             setMessage({ type: 'error', text: error.message });

@@ -2,65 +2,45 @@
 
 import { useState, useEffect } from 'react';
 import { HiDocument, HiCollection, HiCurrencyRupee, HiUpload, HiSave, HiTruck, HiClipboardList, HiInformationCircle, HiLocationMarker, HiHashtag, HiCalendar } from 'react-icons/hi';
-import { shopAPI } from '@/utils/api';
 import { useToast } from '@/context/ToastContext';
+import { useShopStore } from '@/store/useShopStore';
+
+const getInvoiceSettingsState = (shopSettings) => ({
+    invoiceTemplate: shopSettings?.invoiceTemplate || 'our-format',
+    ewayBill: shopSettings?.ewayBill ?? false,
+    einvoice: shopSettings?.einvoice ?? false,
+    billOfSupplyEnabled: shopSettings?.billOfSupplyEnabled ?? false,
+    batchNumber: shopSettings?.invBatchNumber ?? false,
+    expiryDate: shopSettings?.invExpiryDate ?? false,
+    enableTransport: shopSettings?.enableTransport ?? false,
+    enablePurchaseOrders: shopSettings?.enablePurchaseOrders ?? false,
+    enableAdditionalDetails: shopSettings?.enableAdditionalDetails ?? false,
+    enableShipTo: shopSettings?.enableShipTo ?? false,
+    accountHolder: shopSettings?.invAccountHolder || '',
+    bankName: shopSettings?.invBankName || '',
+    accountNumber: shopSettings?.invAccountNumber || '',
+    ifscCode: shopSettings?.invIfscCode || '',
+    branchName: shopSettings?.invBranchName || '',
+    qrCode: shopSettings?.invQrCode || '',
+    invoiceTerms: shopSettings?.invoiceTerms || '',
+});
 
 export default function InvoiceSettingsTab() {
     const toast = useToast();
-    const [settings, setSettings] = useState({
-        invoiceTemplate: 'our-format',
-        ewayBill: false,
-        einvoice: false,
-        billOfSupplyEnabled: false,
-        batchNumber: false,
-        expiryDate: false,
-        enableTransport: false,
-        enablePurchaseOrders: false,
-        enableAdditionalDetails: false,
-        enableShipTo: false,
-        accountHolder: '',
-        bankName: '',
-        accountNumber: '',
-        ifscCode: '',
-        branchName: '',
-        qrCode: '',
-        invoiceTerms: '',
-    });
-    const [qrPreview, setQrPreview] = useState(null);
+    const { shopSettings, updateShopSettings } = useShopStore();
+    const [settings, setSettings] = useState(() => getInvoiceSettingsState(shopSettings));
+    const [qrPreview, setQrPreview] = useState(shopSettings?.invQrCode || null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        shopAPI.get().then(data => {
-            if (data) {
-                setSettings(p => ({
-                    ...p,
-                    invoiceTemplate: data.invoiceTemplate || 'our-format',
-                    ewayBill: data.ewayBill ?? false,
-                    einvoice: data.einvoice ?? false,
-                    billOfSupplyEnabled: data.billOfSupplyEnabled ?? false,
-                    batchNumber: data.invBatchNumber ?? false,
-                    expiryDate: data.invExpiryDate ?? false,
-                    enableTransport: data.enableTransport ?? false,
-                    enablePurchaseOrders: data.enablePurchaseOrders ?? false,
-                    enableAdditionalDetails: data.enableAdditionalDetails ?? false,
-                    enableShipTo: data.enableShipTo ?? false,
-                    accountHolder: data.invAccountHolder || '',
-                    bankName: data.invBankName || '',
-                    accountNumber: data.invAccountNumber || '',
-                    ifscCode: data.invIfscCode || '',
-                    branchName: data.invBranchName || '',
-                    qrCode: data.invQrCode || '',
-                    invoiceTerms: data.invoiceTerms || '',
-                }));
-                if (data.invQrCode) setQrPreview(data.invQrCode);
-            }
-        }).catch(console.error);
-    }, []);
+        setSettings(getInvoiceSettingsState(shopSettings));
+        setQrPreview(shopSettings?.invQrCode || null);
+    }, [shopSettings]);
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            await shopAPI.update({
+            await updateShopSettings({
                 invoiceTemplate: settings.invoiceTemplate,
                 ewayBill: settings.ewayBill,
                 einvoice: settings.einvoice,

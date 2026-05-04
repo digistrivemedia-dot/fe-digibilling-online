@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { HiCog, HiOfficeBuilding, HiSave, HiArchive, HiCube, HiLightningBolt, HiCollection } from 'react-icons/hi';
-import { shopAPI } from '@/utils/api';
 import { useToast } from '@/context/ToastContext';
+import { useShopStore } from '@/store/useShopStore';
 
 // Derives enableProduct / enableService from a single selection key
 const ITEM_MODES = [
@@ -41,31 +41,38 @@ const ITEM_MODES = [
 
 export default function BusinessTypeTab() {
     const toast = useToast();
-    const [itemMode, setItemMode] = useState('product'); // 'product' | 'service' | 'both'
-    const [enableInventory, setEnableInventory] = useState(true);
+    const { shopSettings, updateShopSettings } = useShopStore();
+    const [itemMode, setItemMode] = useState(() => {
+        const prod = shopSettings?.enableProduct !== false;
+        const svc = shopSettings?.enableService === true;
+        if (prod && svc) return 'both';
+        if (svc) return 'service';
+        return 'product';
+    });
+    const [enableInventory, setEnableInventory] = useState(shopSettings?.enableInventory ?? true);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        shopAPI.get().then(data => {
-            const prod = data?.enableProduct !== false;   // default true
-            const svc = data?.enableService === true;    // default false
-            if (prod && svc) setItemMode('both');
-            else if (svc) setItemMode('service');
-            else setItemMode('product');
-            if (data?.enableInventory !== undefined) setEnableInventory(data.enableInventory);
-        }).catch(console.error);
-    }, []);
+        const prod = shopSettings?.enableProduct !== false;
+        const svc = shopSettings?.enableService === true;
+        if (prod && svc) setItemMode('both');
+        else if (svc) setItemMode('service');
+        else setItemMode('product');
+
+        if (shopSettings?.enableInventory !== undefined) {
+            setEnableInventory(shopSettings.enableInventory);
+        }
+    }, [shopSettings]);
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            await shopAPI.update({
+            await updateShopSettings({
                 enableProduct: itemMode === 'product' || itemMode === 'both',
                 enableService: itemMode === 'service' || itemMode === 'both',
                 enableInventory,
             });
             toast.success('Settings saved!');
-            window.dispatchEvent(new Event('shopSettingsUpdated'));
         } catch (error) {
             toast.error(error.message || 'Failed to save');
         } finally {
